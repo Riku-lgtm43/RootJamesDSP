@@ -7,6 +7,8 @@
 #include <vector>
 
 extern "C" void mockSetFailHrtf(bool fail);
+extern "C" void mockResetHrtfCreateCalls();
+extern "C" int mockHrtfCreateCalls();
 extern "C" int mockLastRate();
 extern "C" IPLHRTFType mockLastHrtfType();
 extern "C" const char* mockLastSofaPath();
@@ -113,8 +115,11 @@ int main() {
 
     spatial.configure(96000);
     mockSetFailHrtf(true);
+    mockResetHrtfCreateCalls();
     spatial.setEnabled(true);
     require(!spatial.isInitialized(), "failed high-rate SOFA init stays disabled");
+    require(mockHrtfCreateCalls() == 1 && mockLastHrtfType() == IPL_HRTFTYPE_SOFA,
+            "high-rate SOFA failure does not retry known-unsupported default HRTF");
     std::vector<float> highRateDry(512, -0.0625f), highRateOriginal = highRateDry;
     spatial.process(highRateDry.data(), 256);
     require(highRateDry == highRateOriginal, "high-rate HRTF failure leaves input unchanged");
@@ -124,6 +129,32 @@ int main() {
     require(spatial.isInitialized(), "high-rate SOFA init can recover after retry");
     spatial.setEnabled(false);
     std::puts("PASS high-rate init failure bypass and recovery");
+
+    spatial.configure(48000);
+    spatial.setEnabled(true);
+    std::vector<float> startupPrime(256, 0.125f);
+    spatial.process(startupPrime.data(), 128);
+    for (float x : startupPrime) require(x == 0.125f, "bridge startup remains dry until first full block");
+    spatial.setEnabled(false);
+    std::vector<float> immediateDry(256, 0.125f);
+    spatial.process(immediateDry.data(), 128);
+    for (float x : immediateDry) require(x == 0.125f, "disable before first wet frame stays dry");
+    std::puts("PASS disable before first bridge wet frame");
+
+    spatial.configure(48000);
+    spatial.setEnabled(true);
+    std::vector<float> transitionPrime(256, 0.125f);
+    spatial.process(transitionPrime.data(), 128);
+    std::vector<float> fadeIn(128, 0.125f);
+    spatial.process(fadeIn.data(), 64);
+    spatial.setEnabled(false);
+    std::vector<float> fadeOut(128, 0.125f);
+    spatial.process(fadeOut.data(), 64);
+    const float toggleStepL = std::fabs(fadeOut[0] - fadeIn[126]);
+    const float toggleStepR = std::fabs(fadeOut[1] - fadeIn[127]);
+    require(toggleStepL < 0.02f && toggleStepR < 0.02f,
+            "disable during startup fade does not jump to full wet level");
+    std::puts("PASS disable during startup fade continuity");
 
     spatial.setEnabled(true);
     std::vector<float> signal(4096, 0.1f);
@@ -135,8 +166,11 @@ int main() {
     spatial.setEnabled(true);
     require(spatial.isInitialized() && mockLastRate() == 96000, "rate reconfigure updates Steam Audio");
     spatial.reset();
+    std::vector<float> afterReset(128, 0.125f);
+    spatial.process(afterReset.data(), 64);
+    for (float x : afterReset) require(x == 0.125f, "reset clears buffered wet output");
     spatial.setEnabled(false);
-    std::puts("PASS disable transition, reset, and rate reconfigure");
+    std::puts("PASS disable transition, reset bridge state, and rate reconfigure");
     for (int i = 0; i < 24; ++i) {
         spatial.setEnabled((i & 1) == 0);
         std::vector<float> block(static_cast<size_t>((i % 5 + 1) * 127) * 2, 0.04f);

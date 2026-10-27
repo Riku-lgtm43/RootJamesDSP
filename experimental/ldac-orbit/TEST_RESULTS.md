@@ -9,8 +9,10 @@ Date: 2026-10-27
 - Built ARM64 with Android NDK r27 / Clang 18.0.1, target API 26, C `-std=gnu11`,
   C++ `-std=c++17`, `-fPIC -O2 -DJAMESDSP_REFERENCE_IMPL`, strict undefined
   symbol linking, and the exact Stage 31 `libphonon.so`.
-- New Orbit library SHA-256:
+- Prior Orbit library SHA-256:
   `e00daf0a466ed52660fba93fa4a93c61b96982bdbb92259ff2d967f26b163dfa`.
+- No-diagnostic-logging Orbit library SHA-256:
+  `697f0caf67a4b84069c8c6c5ece80e242f254a5eb27b46cf90e4c3198d07b813`.
 - Unmodified Stage 31 reference Orbit library SHA-256:
   `025bf72e53ccaa600c07699b7650020dff651e1716bd200d2c6d9252bb01ce7d`.
 - Stage 31 `libphonon.so` SHA-256:
@@ -18,9 +20,11 @@ Date: 2026-10-27
 - New library is AArch64 ELF64, retains RUNPATH `/vendor/lib64/soundfx`, and
   has the same `NEEDED` library list and dynamic exports as the prior bridge
   build. It introduces no exports absent from Stage 31.
-- Object comparison against the prior bridge build found only
-  `orbit_SteamSpatial.cpp.o` changed; the other 89 DSP/support object files
-  are byte-identical.
+- Object comparison against the immediately preceding CIPIC build found only
+  `legacy_orbit_c.cpp.o` and `orbit_SteamSpatial.cpp.o` changed; the other 88
+  objects are byte-identical. The Orbit changes remove logs and harden startup,
+  disable, reset, and failed-HRTF retry paths. The earlier comparison against
+  the bridge-only build is historical and not the relevant final diff.
 - CIPIC 124 SOFA SHA-256:
   `c28ff4a874ac889ec0c5885ca524762a70d56984232ff7aadcd9c15d32e1cfb6`.
   Its Regents of the University of California copyright and use notice are
@@ -74,7 +78,11 @@ transitions, reset, rate changes, and 24 repeated enable/disable cycles passed.
 
 ## Remaining device checks
 
-No module installation or audio playback was performed. Audible 88.2/96 kHz
-Orbit, post-update LDAC 44.1/48 behavior, AAC/USB, Android 16 reboot/install,
-and extended stability/stress tests remain pending. Do not describe the high-
-rate audio fix as device-verified until those playback checks pass.
+The user reported a short playback pass with no crackling/popping at LDAC 44.1
+and 48 kHz and audible Orbit at the actual negotiated 96 kHz rate; the capture
+phase labeled 90 kHz negotiated 96 kHz. Rooted dumpsys showed active JamesDSP
+sessions at the tested rates, and captured logs from the preceding diagnostic
+build showed successful 96 kHz CIPIC initialization. The final no-logging
+build adds startup/quick-disable/reset edge-case fixes and has not been
+separately installed. AAC/USB, Android 16 reboot/install, and extended
+stability/stress testing remain pending.

@@ -1,30 +1,3 @@
---- a/source/legacy_orbit_c.cpp
-+++ b/source/legacy_orbit_c.cpp
-@@ -7,0 +8,6 @@
-+#if defined(__ANDROID__)
-+#include <android/log.h>
-+#define ORBIT_CONFIG_LOG(...) __android_log_print(ANDROID_LOG_WARN, "JamesDSPOrbit", __VA_ARGS__)
-+#else
-+#define ORBIT_CONFIG_LOG(...) ((void)0)
-+#endif
-@@ -20 +26,4 @@
--    if (!accepted || !raw) return;
-+    if (!accepted || !raw) {
-+        ORBIT_CONFIG_LOG("Effect config rejected upstream accepted=%d raw=%d", accepted, raw != nullptr);
-+        return;
-+    }
-@@ -27 +36,6 @@
--        !c.inputCfg.samplingRate || c.inputCfg.samplingRate > INT_MAX) return;
-+        !c.inputCfg.samplingRate || c.inputCfg.samplingRate > INT_MAX) {
-+        ORBIT_CONFIG_LOG("Orbit config in=%u/%u/%u out=%u/%u/%u rejected", c.inputCfg.samplingRate,
-+                         c.inputCfg.channels, c.inputCfg.format, c.outputCfg.samplingRate,
-+                         c.outputCfg.channels, c.outputCfg.format);
-+        return;
-+    }
-@@ -29,0 +44,3 @@
-+    ORBIT_CONFIG_LOG("Orbit config in=%u/%u/%u out=%u/%u/%u eligible=1", c.inputCfg.samplingRate,
-+                     c.inputCfg.channels, c.inputCfg.format, c.outputCfg.samplingRate,
-+                     c.outputCfg.channels, c.outputCfg.format);
 --- a/source/orbit/OrbitAdapter.cpp
 +++ b/source/orbit/OrbitAdapter.cpp
 @@ -39 +39,3 @@
@@ -34,48 +7,84 @@
 +    spatial_->process(stereo, frames);
 --- a/source/orbit/SteamSpatial.cpp
 +++ b/source/orbit/SteamSpatial.cpp
-@@ -20 +20,5 @@
+@@ -1 +0,0 @@
+-#define AXIONFX_DISABLED_LOG(...) ((void)0)
+@@ -18,5 +16,0 @@
+-#define LOG_TAG "AxionFxSpatial"
+-#include <cstdio>
 -// Termux-compatible diagnostics; no Android liblog dependency.
-+#if defined(__ANDROID__)
-+#include <android/log.h>
-+#define ALOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
-+#define ALOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
-+#else
-@@ -22,0 +27 @@
-+#endif
-@@ -56 +61,3 @@
+-#define ALOGE(...) do { std::fprintf(stderr, "AxionFxSpatial E: "); std::fprintf(stderr, __VA_ARGS__); std::fprintf(stderr, "\n"); } while (0)
+-#define ALOGW(...) do { std::fprintf(stderr, "AxionFxSpatial W: "); std::fprintf(stderr, __VA_ARGS__); std::fprintf(stderr, "\n"); } while (0)
+@@ -28 +21,0 @@
+-#include <atomic>
+@@ -30 +22,0 @@
+-// AXHRTF_DIAG_V1
+@@ -56 +48 @@
 -    AXIONFX_DISABLED_LOG("AXHRTF configure sr=%d frameSize=%d", mSampleRate, mFrameSize);
-+    mLastInitStatus = IPL_STATUS_SUCCESS;
 +    resetFrameBridge();
-+    ALOGW("Orbit configure sampleRate=%d frameSize=%d", mSampleRate, mFrameSize);
-@@ -66,0 +74 @@
-+        mLastInitStatus = err;
-@@ -96,0 +105 @@
-+        mLastInitStatus = err;
-@@ -105 +114 @@
+@@ -67 +58,0 @@
+-        ALOGE("iplContextCreate failed: %d", err);
+@@ -75 +66,2 @@
+-    static const char* kSofaPath = "/vendor/etc/axionfx/hrtf/sadie_h12.sofa";
++    static const char* kSadieSofaPath = "/vendor/etc/axionfx/hrtf/sadie_h12.sofa";
++    static const char* kCipicSofaPath = "/vendor/etc/axionfx/hrtf/cipic_124.sofa";
+@@ -80 +72,3 @@
+-    if (mHrtfProfile == 1 && access(kSofaPath, R_OK) == 0) {
++    const bool highRateNeedsSofa = mSampleRate == 88200 || mSampleRate == 96000;
++    const bool sadieAvailable = mHrtfProfile == 1 && access(kSadieSofaPath, R_OK) == 0;
++    if (sadieAvailable) {
+@@ -82,2 +76,6 @@
+-        hrtfSettings.sofaFileName = kSofaPath;
+-        AXIONFX_DISABLED_LOG("Loading HRTF profile SADIE H12 from %s", kSofaPath);
++        hrtfSettings.sofaFileName = kSadieSofaPath;
++    } else if (highRateNeedsSofa) {
++        // Steam Audio's embedded default HRTF has no 88.2/96 kHz data.
++        // The bundled CIPIC SOFA is resampled by Steam Audio for these rates.
++        hrtfSettings.type = IPL_HRTFTYPE_SOFA;
++        hrtfSettings.sofaFileName = kCipicSofaPath;
+@@ -86 +83,0 @@
+-        AXIONFX_DISABLED_LOG("Using default embedded HRTF (profile %d)", mHrtfProfile);
+@@ -91,4 +88,12 @@
+-        ALOGW("SOFA HRTF failed (%d), falling back to default", err);
+-        hrtfSettings.type = IPL_HRTFTYPE_DEFAULT;
+-        hrtfSettings.sofaFileName = nullptr;
+-        err = iplHRTFCreate(mContext, &audioSettings, &hrtfSettings, &mHrtf);
++        if (highRateNeedsSofa) {
++            // The embedded default is known not to contain high-rate data.
++            // If a selected SADIE file fails, retry the packaged CIPIC file.
++            if (sadieAvailable) {
++                hrtfSettings.sofaFileName = kCipicSofaPath;
++                err = iplHRTFCreate(mContext, &audioSettings, &hrtfSettings, &mHrtf);
++            }
++        } else {
++            hrtfSettings.type = IPL_HRTFTYPE_DEFAULT;
++            hrtfSettings.sofaFileName = nullptr;
++            err = iplHRTFCreate(mContext, &audioSettings, &hrtfSettings, &mHrtf);
++        }
+@@ -97 +101,0 @@
+-        ALOGE("iplHRTFCreate failed: %d", err);
+@@ -105 +109 @@
 -    if (err != IPL_STATUS_SUCCESS) { ALOGE("left input allocation failed: %d", err); teardown(); return; }
-+    if (err != IPL_STATUS_SUCCESS) { mLastInitStatus = err; ALOGE("left input allocation failed: %d", err); teardown(); return; }
-@@ -108 +117 @@
++    if (err != IPL_STATUS_SUCCESS) { teardown(); return; }
+@@ -108 +112 @@
 -    if (err != IPL_STATUS_SUCCESS) { ALOGE("right input allocation failed: %d", err); teardown(); return; }
-+    if (err != IPL_STATUS_SUCCESS) { mLastInitStatus = err; ALOGE("right input allocation failed: %d", err); teardown(); return; }
-@@ -111 +120 @@
++    if (err != IPL_STATUS_SUCCESS) { teardown(); return; }
+@@ -111 +115 @@
 -    if (err != IPL_STATUS_SUCCESS) { ALOGE("left output allocation failed: %d", err); teardown(); return; }
-+    if (err != IPL_STATUS_SUCCESS) { mLastInitStatus = err; ALOGE("left output allocation failed: %d", err); teardown(); return; }
-@@ -114 +123 @@
++    if (err != IPL_STATUS_SUCCESS) { teardown(); return; }
+@@ -114 +118 @@
 -    if (err != IPL_STATUS_SUCCESS) { ALOGE("right output allocation failed: %d", err); teardown(); return; }
-+    if (err != IPL_STATUS_SUCCESS) { mLastInitStatus = err; ALOGE("right output allocation failed: %d", err); teardown(); return; }
-@@ -120 +129 @@
++    if (err != IPL_STATUS_SUCCESS) { teardown(); return; }
+@@ -120 +124 @@
 -    if (err != IPL_STATUS_SUCCESS) { ALOGE("left effect creation failed: %d", err); teardown(); return; }
-+    if (err != IPL_STATUS_SUCCESS) { mLastInitStatus = err; ALOGE("left effect creation failed: %d", err); teardown(); return; }
-@@ -122 +131 @@
++    if (err != IPL_STATUS_SUCCESS) { teardown(); return; }
+@@ -122 +126 @@
 -    if (err != IPL_STATUS_SUCCESS) { ALOGE("right effect creation failed: %d", err); teardown(); return; }
-+    if (err != IPL_STATUS_SUCCESS) { mLastInitStatus = err; ALOGE("right effect creation failed: %d", err); teardown(); return; }
-@@ -125,2 +134,2 @@
++    if (err != IPL_STATUS_SUCCESS) { teardown(); return; }
+@@ -125,2 +128,0 @@
 -    AXIONFX_DISABLED_LOG("AXHRTF initialized sr=%d frameSize=%d", mSampleRate, mFrameSize);
 -    AXIONFX_DISABLED_LOG("Steam Audio stereo orbit initialized: sr=%d frameSize=%d", mSampleRate, mFrameSize);
-+    mLastInitStatus = IPL_STATUS_SUCCESS;
-+    ALOGW("Orbit Steam Audio initialized sampleRate=%d frameSize=%d", mSampleRate, mFrameSize);
-@@ -140,0 +150,11 @@
+@@ -140,0 +143,12 @@
 +void SteamSpatial::resetFrameBridge() {
 +    mPendingInput.fill(0.0f);
 +    mOutputBlock.fill(0.0f);
@@ -84,10 +93,11 @@
 +    mFadeInRemaining = 0;
 +    mFadeOutTotal = 0;
 +    mFadeOutRemaining = 0;
++    mFadeOutInitialGain = 0.0f;
 +    mFadeInStarted = false;
 +}
 +
-@@ -142,8 +162,50 @@
+@@ -142,8 +156,52 @@
 -    static std::atomic<uint64_t> calls{0};
 -    const uint64_t call = calls.fetch_add(1, std::memory_order_relaxed) + 1;
 -    if (call == 1 || call % 1000 == 0)
@@ -104,7 +114,8 @@
 +        while (frame < frames && mFadeOutRemaining > 0 && mBridgePosition < mFrameSize) {
 +            const float dryL = buffer[frame * 2];
 +            const float dryR = buffer[frame * 2 + 1];
-+            const float wet = static_cast<float>(mFadeOutRemaining) / static_cast<float>(mFadeOutTotal);
++            const float wet = mFadeOutInitialGain *
++                              static_cast<float>(mFadeOutRemaining) / static_cast<float>(mFadeOutTotal);
 +            buffer[frame * 2] = wet * mOutputBlock[mBridgePosition * 2] + (1.0f - wet) * dryL;
 +            buffer[frame * 2 + 1] = wet * mOutputBlock[mBridgePosition * 2 + 1] + (1.0f - wet) * dryR;
 +            ++mBridgePosition;
@@ -115,15 +126,16 @@
 +        return;
 +    }
 +    mFadeOutRemaining = mFadeOutTotal = 0;
++    mFadeOutInitialGain = 0.0f;
 +    for (int frame = 0; frame < frames; ++frame) {
 +        const float inL = buffer[frame * 2];
 +        const float inR = buffer[frame * 2 + 1];
-+        float outL = mBridgeReady ? mOutputBlock[mBridgePosition * 2] : 0.0f;
-+        float outR = mBridgeReady ? mOutputBlock[mBridgePosition * 2 + 1] : 0.0f;
++        float outL = mBridgeReady ? mOutputBlock[mBridgePosition * 2] : inL;
++        float outR = mBridgeReady ? mOutputBlock[mBridgePosition * 2 + 1] : inR;
 +        if (mBridgeReady && mFadeInRemaining > 0) {
-+            const float gain = static_cast<float>(mFrameSize - mFadeInRemaining + 1) / static_cast<float>(mFrameSize);
-+            outL *= gain;
-+            outR *= gain;
++            const float wet = static_cast<float>(mFrameSize - mFadeInRemaining + 1) / static_cast<float>(mFrameSize);
++            outL = wet * outL + (1.0f - wet) * inL;
++            outR = wet * outR + (1.0f - wet) * inR;
 +            --mFadeInRemaining;
 +        }
 +        buffer[frame * 2] = outL;
@@ -146,9 +158,9 @@
 +
 +void SteamSpatial::processBlock(float* buffer, int frames) {
 +    if (!buffer || !mEnabled || !mInitialized || frames != mFrameSize || mFrameSize <= 0) return;
-@@ -155 +216,0 @@
+@@ -155 +212,0 @@
 -    const float dry = 1.0f - wet;
-@@ -176,7 +237 @@
+@@ -176,7 +233 @@
 -        // Never feed zero padding into Steam Audio's convolution history.
 -        // For unusual non-multiple callback sizes, leave the short tail dry.
 -        if (block != mFrameSize) {
@@ -157,10 +169,10 @@
 -            continue;
 -        }
 +        if (block != mFrameSize) return;
-@@ -219,2 +273,0 @@
+@@ -219,2 +269,0 @@
 -    if (measure)
 -        AXIONFX_DISABLED_LOG("AXHRTF applied calls=%llu phaseFrames=%llu firstSampleDeltaL=%g firstSampleDeltaR=%g", (unsigned long long)call, (unsigned long long)mOrbitFrameCount, (double)(buffer[0] - beforeL), (double)(buffer[1] - beforeR));
-@@ -235,0 +289,13 @@
+@@ -235,0 +285,17 @@
 +    if (enabled && !mEnabled && mInitialized) {
 +        resetFrameBridge();
 +        mEnabled = true;
@@ -170,13 +182,19 @@
 +        mEnabled = false;
 +        mFadeOutRemaining = mBridgeReady ? (mFrameSize - mBridgePosition) : 0;
 +        mFadeOutTotal = mFadeOutRemaining;
++        mFadeOutInitialGain = !mBridgeReady ? 0.0f :
++            (mFadeInRemaining > 0
++                ? static_cast<float>(mFrameSize - mFadeInRemaining) / static_cast<float>(mFrameSize)
++                : 1.0f);
 +        if (mFadeOutRemaining == 0) resetFrameBridge();
 +        mInitFailed = false;
 +        return;
 +    }
 @@ -237 +302,0 @@
 -    AXIONFX_DISABLED_LOG("AXHRTF setEnabled requested=%d initialized=%d initFailed=%d", enabled, mInitialized, mInitFailed);
-@@ -269,0 +335 @@
+@@ -255,0 +321 @@
++    resetFrameBridge();
+@@ -269,0 +336 @@
 +    resetFrameBridge();
 --- a/source/orbit/SteamSpatial.h
 +++ b/source/orbit/SteamSpatial.h
@@ -184,14 +202,10 @@
 +#include <array>
 @@ -7,0 +9 @@
 +    static constexpr int kFrameSize = 128;
-@@ -12,0 +15 @@
-+    int lastInitStatus() const { return mLastInitStatus; }
-@@ -26,0 +30,2 @@
+@@ -26,0 +29,2 @@
 +    void processBlock(float* buffer, int frames) __attribute__((visibility("hidden")));
 +    void resetFrameBridge() __attribute__((visibility("hidden")));
-@@ -29,0 +35 @@
-+    int mLastInitStatus = IPL_STATUS_SUCCESS;
-@@ -55,0 +62,10 @@
+@@ -55,0 +60,11 @@
 +    // Steam Audio requires fixed 128-frame calls. Buffer across Android callbacks
 +    // and emit one block later so no callback remainder is repeatedly left dry.
 +    std::array<float, kFrameSize * 2> mPendingInput{};
@@ -201,25 +215,5 @@
 +    int mFadeInRemaining = 0;
 +    int mFadeOutTotal = 0;
 +    int mFadeOutRemaining = 0;
++    float mFadeOutInitialGain = 0.0f;
 +    bool mFadeInStarted = false;
---- a/source/orbit/SteamSpatial.cpp
-+++ b/source/orbit/SteamSpatial.cpp
-@@ -83 +83,2 @@
--    static const char* kSofaPath = "/vendor/etc/axionfx/hrtf/sadie_h12.sofa";
-+    static const char* kSadieSofaPath = "/vendor/etc/axionfx/hrtf/sadie_h12.sofa";
-+    static const char* kCipicSofaPath = "/vendor/etc/axionfx/hrtf/cipic_124.sofa";
-@@ -88 +89,2 @@
--    if (mHrtfProfile == 1 && access(kSofaPath, R_OK) == 0) {
-+    const bool highRateNeedsSofa = mSampleRate == 88200 || mSampleRate == 96000;
-+    if (mHrtfProfile == 1 && access(kSadieSofaPath, R_OK) == 0) {
-@@ -90,2 +92,8 @@
--        hrtfSettings.sofaFileName = kSofaPath;
--        AXIONFX_DISABLED_LOG("Loading HRTF profile SADIE H12 from %s", kSofaPath);
-+        hrtfSettings.sofaFileName = kSadieSofaPath;
-+        AXIONFX_DISABLED_LOG("Loading HRTF profile SADIE H12 from %s", kSadieSofaPath);
-+    } else if (highRateNeedsSofa) {
-+        // Steam Audio's embedded default HRTF has no 88.2/96 kHz data.
-+        // The bundled CIPIC SOFA is resampled by Steam Audio for these rates.
-+        hrtfSettings.type = IPL_HRTFTYPE_SOFA;
-+        hrtfSettings.sofaFileName = kCipicSofaPath;
-+        ALOGW("Using CIPIC SOFA for high-rate Orbit sampleRate=%d", mSampleRate);

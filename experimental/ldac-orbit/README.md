@@ -24,10 +24,10 @@ device root cause.
 The patch adds a preallocated per-instance 128-frame bridge, a bounded 128
 frame processing latency, a short fade when the first processed block becomes
 available, and a bounded fade back to current dry audio when Orbit is turned
-off. It also logs accepted/rejected effect configuration and Steam Audio
-initialization results outside the per-buffer processing loop. It does not
-change JamesDSP's algorithms, parameter IDs, app, APK, Steam Audio library,
-other native dependencies, effect UUID, or audio XML.
+off. The current package removes the temporary Orbit route, configuration, and
+Steam Audio initialization log calls. It does not change JamesDSP's algorithms,
+parameter IDs, app, APK, Steam Audio library, other native dependencies, effect
+UUID, or audio XML.
 
 ## Provenance and build
 
@@ -86,13 +86,13 @@ the backed-up Stage 31 ZIP and reboot. Keep the current signed app, module
 backup, and settings backup. Never flash the ZIP from recovery on an unknown
 ROM.
 
-Check `logcat -s JamesDSPOrbit AxionFxSpatial` for route configuration and
-HRTF initialization status. The logs do not prove that the spatial output is
-audible. Test short playback first: Orbit OFF then ON at LDAC 44.1, 48, and
-96 kHz, followed by AAC and USB controls. Stop a route immediately on
-crackle, popping, dropout, or abnormal level. Do not perform extended playback
-until every short test is clean. Do not call LDAC fixed until the user reports
-device results.
+Short device playback has now been reported clean at LDAC 44.1 and 48 kHz,
+with Orbit audible at the device's negotiated 96 kHz rate. The capture also
+showed active JamesDSP processing and successful high-rate CIPIC initialization
+on the preceding diagnostic build. Diagnostic logging has since been removed
+from the candidate. The no-logging rebuild has not yet been separately
+installed; AAC/USB, Android 16 reboot/update, and extended stress tests remain
+pending.
 
 ## 96 kHz HRTF initialization investigation
 
@@ -120,8 +120,8 @@ library. This source/binary evidence establishes why the default profile
 fails. The follow-up Termux matrix confirms that CIPIC SOFA creation succeeds
 with this exact library at all four tested rates and frame sizes. A separate
 opt-in candidate now selects bundled CIPIC SOFA at 88.2/96 kHz while retaining
-the embedded default at 44.1/48 kHz. This verifies HRTF initialization; audible
-high-rate Orbit playback still needs device testing.
+the embedded default at 44.1/48 kHz. The subsequent user device test reported Orbit audible at the negotiated
+96 kHz rate with no crackling or popping at 44.1/48 kHz.
 
 The diagnostic source in `diagnostics/` builds a standalone Termux executable
 which calls the original library directly. It tests default HRTF creation at
@@ -165,42 +165,36 @@ candidate package's `reference/` directory.
 
 ## Separate high-rate CIPIC candidate
 
-The follow-up package is a separate opt-in artifact; the earlier bridge-only
-ZIP and Stage 31 release remain unchanged. It preserves module ID
-`jamesdsp_orbit_stage29`, keeps the embedded default HRTF at 44.1/48 kHz, and
-uses the bundled CIPIC SOFA at 88.2/96 kHz. The exact Stage 31 Steam Audio
-library initialized that SOFA at all tested rates and frame sizes. This is
-initialization evidence, not proof of audible device output; Android 16,
-reboot, playback and extended stress checks remain pending. Back up the known-
-good package, install only as an in-place opt-in update through KernelSU
-Manager, test briefly at low volume, and roll back by disabling the module and
-restoring the saved package if audio is abnormal.
+The no-diagnostic-logging package is a new opt-in artifact. The earlier
+bridge-only package, previous CIPIC package, and Stage 31 release remain
+unchanged. The module ID stays `jamesdsp_orbit_stage29`; embedded HRTF remains
+in use at 44.1/48 kHz, and bundled CIPIC SOFA is used at 88.2/96 kHz.
 
-Download the [separate CIPIC HRTF experimental ZIP](https://raw.githubusercontent.com/Riku-lgtm43/RootJamesDSP/fix/ldac-orbit-native/experimental/ldac-orbit/artifacts/JamesDSP_Orbit_LDAC_CIPIC_HRTF_Experimental_KernelSU.zip).
+The rooted capture confirmed active JamesDSP processing and successful CIPIC
+initialization at the actual 96 kHz LDAC rate. The user reported no crackling or
+popping at 44.1/48 kHz and audible Orbit at 96 kHz. Those short playback
+results came from the immediately preceding build; the final rebuild removes
+Orbit diagnostic logging and unused status bookkeeping, and hardens startup,
+quick-disable, reset, and high-rate HRTF failure paths without changing steady-
+state DSP/HRTF behavior. This refined build has not yet been installed separately. AAC/USB, Android 16
+update/reboot, and extended stability/stress tests remain pending.
+
+Download the [no-diagnostic-logging experimental ZIP](https://raw.githubusercontent.com/Riku-lgtm43/RootJamesDSP/fix/ldac-orbit-native/experimental/ldac-orbit/artifacts/JamesDSP_Orbit_LDAC_CIPIC_HRTF_Experimental_KernelSU_NoLogs.zip).
 Its SHA-256 is
-`3e65077f40c83a7cff404d3837d3b5ea98997cb57b9586e5ff3adbf22b9a967e`.
-The [verification report](artifacts/JamesDSP_Orbit_LDAC_CIPIC_HRTF_Verification_Report.md)
-includes binary hashes, signature checks, file-level comparison, tests, and
-remaining device validation.
+`643357f02277556bc203cecf9e0b43a98f76e38bc85c9f40dde324645cffa19e`.
+The matching verification report is
+[here](artifacts/JamesDSP_Orbit_LDAC_CIPIC_HRTF_NoLogs_Verification_Report.md).
 
 ## Termux package reassembly
 
-The exact tested candidate ZIP and its checksum are committed under
-`artifacts/` on branch `fix/ldac-orbit-native`. Download the [exact ZIP from
-the branch](https://raw.githubusercontent.com/Riku-lgtm43/RootJamesDSP/fix/ldac-orbit-native/experimental/ldac-orbit/artifacts/JamesDSP_Orbit_LDAC_FrameBridge_Experimental_KernelSU.zip)
-if an in-chat attachment cannot be opened. Its SHA-256 is
-`44388287d08151490dac520c24038eb25a83e6a1aefe04479adc5c6778a90064`.
-The Termux helper
-reassembles the same uncompressed package members over the original Stage 31
-ZIP using the already-tested Orbit library from the committed candidate. It
-does not compile or alter native DSP. It checks both input ZIP hashes,
-confirms the signed APK, support libraries, audio XML, and installer match
-Stage 31, compares every final member byte-for-byte with the committed
-candidate, then writes and verifies an output checksum sidecar. ZIP container
-metadata can make the reassembled ZIP's outer SHA differ from the committed
-ZIP while all uncompressed member bytes remain identical.
+The helper reassembles the no-diagnostic-logging package from the original
+Stage 31 ZIP plus the committed experimental candidate. It verifies both input
+ZIP hashes, checks protected Stage 31 payloads, overlays candidate members,
+then compares every final member byte-for-byte against the verified candidate.
+The rebuilt ZIP container may have a different outer SHA due to ZIP metadata;
+the script writes and checks a checksum sidecar.
 
-Install the Termux utilities if needed, then fetch and run the helper directly:
+Fetch and run it in Termux:
 
 ```sh
 pkg install curl zip unzip coreutils findutils diffutils
@@ -208,15 +202,9 @@ curl -fL \
   https://raw.githubusercontent.com/Riku-lgtm43/RootJamesDSP/fix/ldac-orbit-native/experimental/ldac-orbit/scripts/repack-stage31-termux.sh \
   -o "$HOME/repack-stage31-termux.sh"
 bash "$HOME/repack-stage31-termux.sh" \
-  "$HOME/storage/downloads/JamesDSP_Orbit_LDAC_FrameBridge_Experimental_KernelSU.zip"
+  "$HOME/storage/downloads/JamesDSP_Orbit_LDAC_CIPIC_HRTF_Experimental_KernelSU_NoLogs.zip"
 ```
 
-The script downloads the candidate from the branch and the original Stage 31
-release ZIP. It also accepts local inputs:
-
-```sh
-bash experimental/ldac-orbit/scripts/repack-stage31-termux.sh \
-  "$HOME/storage/downloads/JamesDSP_Orbit_LDAC_FrameBridge_Experimental_KernelSU.zip" \
-  experimental/ldac-orbit/artifacts/JamesDSP_Orbit_LDAC_FrameBridge_Experimental_KernelSU.zip \
-  "$HOME/storage/downloads/JamesDSP-Stage31-Combined-Deployable-Corrected.zip"
-```
+The script downloads the candidate and original Stage 31 ZIP when local inputs
+are omitted. It also accepts both files as the second and third arguments for
+offline reassembly.

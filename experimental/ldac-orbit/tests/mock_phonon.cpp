@@ -3,10 +3,13 @@
 #include <cstring>
 
 static bool gFailHrtf = false;
+static int gHrtfCreateCalls = 0;
 static int gRate = 0;
 static IPLHRTFType gHrtfType = IPL_HRTFTYPE_DEFAULT;
 static char gSofaPath[512] = {};
 extern "C" void mockSetFailHrtf(bool fail) { gFailHrtf = fail; }
+extern "C" void mockResetHrtfCreateCalls() { gHrtfCreateCalls = 0; }
+extern "C" int mockHrtfCreateCalls() { return gHrtfCreateCalls; }
 extern "C" int mockLastRate() { return gRate; }
 extern "C" IPLHRTFType mockLastHrtfType() { return gHrtfType; }
 extern "C" const char* mockLastSofaPath() { return gSofaPath; }
@@ -15,6 +18,7 @@ struct FakeHandle { int id; };
 IPLerror iplContextCreate(IPLContextSettings*, IPLContext* c) { *c = reinterpret_cast<IPLContext>(new FakeHandle{1}); return IPL_STATUS_SUCCESS; }
 void iplContextRelease(IPLContext* c) { delete reinterpret_cast<FakeHandle*>(*c); *c = nullptr; }
 IPLerror iplHRTFCreate(IPLContext, IPLAudioSettings* a, IPLHRTFSettings* settings, IPLHRTF* h) {
+    ++gHrtfCreateCalls;
     gRate = a->samplingRate;
     gHrtfType = settings->type;
     gSofaPath[0] = '\0';
