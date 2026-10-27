@@ -4,15 +4,28 @@
 
 static bool gFailHrtf = false;
 static int gRate = 0;
+static IPLHRTFType gHrtfType = IPL_HRTFTYPE_DEFAULT;
+static char gSofaPath[512] = {};
 extern "C" void mockSetFailHrtf(bool fail) { gFailHrtf = fail; }
 extern "C" int mockLastRate() { return gRate; }
+extern "C" IPLHRTFType mockLastHrtfType() { return gHrtfType; }
+extern "C" const char* mockLastSofaPath() { return gSofaPath; }
 
 struct FakeHandle { int id; };
 IPLerror iplContextCreate(IPLContextSettings*, IPLContext* c) { *c = reinterpret_cast<IPLContext>(new FakeHandle{1}); return IPL_STATUS_SUCCESS; }
 void iplContextRelease(IPLContext* c) { delete reinterpret_cast<FakeHandle*>(*c); *c = nullptr; }
-IPLerror iplHRTFCreate(IPLContext, IPLAudioSettings* a, IPLHRTFSettings*, IPLHRTF* h) {
+IPLerror iplHRTFCreate(IPLContext, IPLAudioSettings* a, IPLHRTFSettings* settings, IPLHRTF* h) {
     gRate = a->samplingRate;
-    if (gFailHrtf) { *h = nullptr; return IPL_STATUS_INITIALIZATION; }
+    gHrtfType = settings->type;
+    gSofaPath[0] = '\0';
+    if (settings->sofaFileName) {
+        std::strncpy(gSofaPath, settings->sofaFileName, sizeof(gSofaPath) - 1);
+        gSofaPath[sizeof(gSofaPath) - 1] = '\0';
+    }
+    if (gFailHrtf || (a->samplingRate > 48000 && settings->type == IPL_HRTFTYPE_DEFAULT)) {
+        *h = nullptr;
+        return IPL_STATUS_INITIALIZATION;
+    }
     *h = reinterpret_cast<IPLHRTF>(new FakeHandle{2}); return IPL_STATUS_SUCCESS;
 }
 void iplHRTFRelease(IPLHRTF* h) { delete reinterpret_cast<FakeHandle*>(*h); *h = nullptr; }

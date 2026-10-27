@@ -1,60 +1,80 @@
-# Experimental bridge verification record
+# Experimental LDAC bridge and high-rate HRTF verification
 
 Date: 2026-10-27
 
-## Source/build checks
+## Source and ARM64 build
 
-- Patch applied cleanly to the uploaded Stage 18 source tree with `patch -p1`.
-- Clean ARM64 NDK build completed for all manifest sources using NDK r27 /
-  Clang 18.0.1, target API 26, C `-std=gnu11`, C++ `-std=c++17`,
-  `-fPIC -O2 -DJAMESDSP_REFERENCE_IMPL`, strict undefined-symbol linking, and
-  the exact Stage 31 packaged `libphonon.so`.
-- Candidate SHA-256:
-  `459fe1fe6e5510634a183c5b4972031fa2172cf1dc31ccc108fb494040f41795`.
-- Stage 31 reference SHA-256:
+- The complete patch applies cleanly to the supplied Stage 18 source tree with
+  `patch -p1` and reproduces the working source in `work/ldac-candidate/source`.
+- Built ARM64 with Android NDK r27 / Clang 18.0.1, target API 26, C `-std=gnu11`,
+  C++ `-std=c++17`, `-fPIC -O2 -DJAMESDSP_REFERENCE_IMPL`, strict undefined
+  symbol linking, and the exact Stage 31 `libphonon.so`.
+- New Orbit library SHA-256:
+  `e00daf0a466ed52660fba93fa4a93c61b96982bdbb92259ff2d967f26b163dfa`.
+- Unmodified Stage 31 reference Orbit library SHA-256:
   `025bf72e53ccaa600c07699b7650020dff651e1716bd200d2c6d9252bb01ce7d`.
-- Both are AArch64 ELF64 with the same `NEEDED` entries and RUNPATH
-  `/vendor/lib64/soundfx`; neither has a SONAME. Candidate has 1,025 dynamic
-  defined symbols; every candidate export is present in the reference. The
-  reference has two additional CPU resolver symbols.
-- The candidate links the exact packaged Steam Audio library:
+- Stage 31 `libphonon.so` SHA-256:
   `857612e669414165daabd95423d6fcf5fc51e57a8e2a0d07e0b39eadaacb0369`.
-- The NDK baseline build is not byte-identical to Stage 31. Its SHA-256 is
-  `940b14d3db9633feb7adebeebd22acbd4dfc80a602ac6d3583011c47dcb763dc`.
+- New library is AArch64 ELF64, retains RUNPATH `/vendor/lib64/soundfx`, and
+  has the same `NEEDED` library list and dynamic exports as the prior bridge
+  build. It introduces no exports absent from Stage 31.
+- Object comparison against the prior bridge build found only
+  `orbit_SteamSpatial.cpp.o` changed; the other 89 DSP/support object files
+  are byte-identical.
+- CIPIC 124 SOFA SHA-256:
+  `c28ff4a874ac889ec0c5885ca524762a70d56984232ff7aadcd9c15d32e1cfb6`.
+  Its Regents of the University of California copyright and use notice are
+  included in the package.
 
-## Offline callback harness
+## Exact-library Android HRTF initialization matrix
+
+The user supplied Termux results in
+`reference/cipic-hrtf-init-matrix.txt`; the preceding default-profile matrix is
+in `reference/default-hrtf-init-matrix.txt`. Both were run against the exact
+Stage 31 Steam Audio library hash above, API 4.8.1, build ID
+`020c11ef0d34b1431c84615ccf48973fd417e224`.
+
+- Default embedded HRTF: 44.1/48 kHz succeeded at frame sizes 128, 256, 512,
+  and 1024. At 88.2/96 kHz it returned
+  `IPL_STATUS_INITIALIZATION` for all four sizes.
+- CIPIC SOFA HRTF: succeeded at 44.1, 48, 88.2, and 96 kHz for all four frame
+  sizes. This validates HRTF object creation with the exact library and data;
+  it does not test audible output through AudioFlinger.
+- The candidate therefore retains the embedded default profile at 44.1/48 kHz
+  and selects the bundled CIPIC SOFA only at 88.2/96 kHz.
+
+## Host callback regressions
 
 Command:
 
 ```sh
 experimental/ldac-orbit/scripts/run-host-regression.sh \
-  work/patch-check-final/source work/steamaudio_4.8.1/include \
-  work/patch-check-final/frame_bridge_test
+  work/ldac-candidate/source work/steamaudio_4.8.1/include \
+  work/frame_bridge_cipic_test
 ```
 
-Compiler: Debian g++ 14.2.0 with `-Wall -Wextra -Werror`, ASan, UBSan, and
-leak detection. Steam Audio calls are mocked at the API boundary; these
-results validate bridge logic and memory safety, not the real HRTF algorithm.
+Compiler: Debian g++ 14.2.0 with `-Wall -Wextra -Werror`, ASan, UBSan, and leak
+checking. Steam Audio calls are mocked at the API boundary. The mock models the
+measured unsupported default rates and verifies SOFA selection/path at 88.2/96.
+It validates bridge control flow and memory safety, not actual HRTF output.
 
 | Rate | Peak | Max adjacent step | Left RMS | Right RMS | Stereo delta RMS | Mean aligned change | Result |
 |---:|---:|---:|---:|---:|---:|---:|---|
 | 44,100 Hz | 0.170958 | 0.0208415 | 0.0855313 | 0.0303110 | 0.0626755 | 0.0668018 | PASS |
 | 48,000 Hz | 0.171172 | 0.0191211 | 0.0856018 | 0.0303193 | 0.0627221 | 0.0667804 | PASS |
+| 88,200 Hz | 0.171235 | 0.0104319 | 0.0854257 | 0.0302564 | 0.0626546 | 0.0668758 | PASS |
 | 96,000 Hz | 0.171172 | 0.00958492 | 0.0854162 | 0.0302458 | 0.0626539 | 0.0668695 | PASS |
 
-At all three rates, rendering with fixed 128-frame callbacks and repeated
-irregular callbacks (including 1, 64, 96, 127, 128, 129, 192, 240, 256, 480,
-512, 882, 960, 1,024, 1,920, and 2,048 frames) produced maximum segmentation
-difference 0. Canary checks, finite output, nonzero distinct stereo output,
-per-128-frame wet-change checks, peak bound, and discontinuity threshold
-passed. Initialization failure bypass/recovery, exact OFF passthrough,
-disable transition, reset, 48-to-96 kHz reconfiguration, and 24 repeated
-enable/disable transitions passed under sanitizers.
+At every rate, fixed 128-frame and irregular callback sequences (1, 64, 96,
+127, 128, 129, 192, 240, 256, 480, 512, 882, 960, 1,024, 1,920, and 2,048
+frames) were segmentation-equivalent (maximum difference 0). Canaries, finite
+output, stereo balance, nonzero wet change, peak/discontinuity bounds, failure
+bypass/recovery (including high-rate SOFA failure), OFF passthrough,
+transitions, reset, rate changes, and 24 repeated enable/disable cycles passed.
 
-## Not tested
+## Remaining device checks
 
-- Real Stage 31 Steam Audio processing on the device, including whether its
-  HRTF initializes at 96 kHz.
-- LDAC 44.1/48 crackling resolution, LDAC 96 kHz audibility, AAC/USB behavior,
-  reboot persistence, or long-duration stability.
-- Installation or rollback on a device. No installation was performed.
+No module installation or audio playback was performed. Audible 88.2/96 kHz
+Orbit, post-update LDAC 44.1/48 behavior, AAC/USB, Android 16 reboot/install,
+and extended stability/stress tests remain pending. Do not describe the high-
+rate audio fix as device-verified until those playback checks pass.

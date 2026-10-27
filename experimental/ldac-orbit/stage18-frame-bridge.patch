@@ -202,3 +202,24 @@
 +    int mFadeOutTotal = 0;
 +    int mFadeOutRemaining = 0;
 +    bool mFadeInStarted = false;
+--- a/source/orbit/SteamSpatial.cpp
++++ b/source/orbit/SteamSpatial.cpp
+@@ -83 +83,2 @@
+-    static const char* kSofaPath = "/vendor/etc/axionfx/hrtf/sadie_h12.sofa";
++    static const char* kSadieSofaPath = "/vendor/etc/axionfx/hrtf/sadie_h12.sofa";
++    static const char* kCipicSofaPath = "/vendor/etc/axionfx/hrtf/cipic_124.sofa";
+@@ -88 +89,2 @@
+-    if (mHrtfProfile == 1 && access(kSofaPath, R_OK) == 0) {
++    const bool highRateNeedsSofa = mSampleRate == 88200 || mSampleRate == 96000;
++    if (mHrtfProfile == 1 && access(kSadieSofaPath, R_OK) == 0) {
+@@ -90,2 +92,8 @@
+-        hrtfSettings.sofaFileName = kSofaPath;
+-        AXIONFX_DISABLED_LOG("Loading HRTF profile SADIE H12 from %s", kSofaPath);
++        hrtfSettings.sofaFileName = kSadieSofaPath;
++        AXIONFX_DISABLED_LOG("Loading HRTF profile SADIE H12 from %s", kSadieSofaPath);
++    } else if (highRateNeedsSofa) {
++        // Steam Audio's embedded default HRTF has no 88.2/96 kHz data.
++        // The bundled CIPIC SOFA is resampled by Steam Audio for these rates.
++        hrtfSettings.type = IPL_HRTFTYPE_SOFA;
++        hrtfSettings.sofaFileName = kCipicSofaPath;
++        ALOGW("Using CIPIC SOFA for high-rate Orbit sampleRate=%d", mSampleRate);

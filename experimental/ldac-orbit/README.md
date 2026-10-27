@@ -117,8 +117,11 @@ Stage 31 `libphonon.so` has SHA-256
 `libm`, `libdl`, and `libc`. The embedded HRTF resource and sample-rate lookup
 function are byte-identical in the packaged library and Steam Audio 4.8.1 SDK
 library. This source/binary evidence establishes why the default profile
-fails, but the requested real-library Termux matrix has not been run on the
-device. No 96 kHz workaround or replacement package has been made.
+fails. The follow-up Termux matrix confirms that CIPIC SOFA creation succeeds
+with this exact library at all four tested rates and frame sizes. A separate
+opt-in candidate now selects bundled CIPIC SOFA at 88.2/96 kHz while retaining
+the embedded default at 44.1/48 kHz. This verifies HRTF initialization; audible
+high-rate Orbit playback still needs device testing.
 
 The diagnostic source in `diagnostics/` builds a standalone Termux executable
 which calls the original library directly. It tests default HRTF creation at
@@ -145,15 +148,40 @@ bash "$HOME/jdsp-hrtf-matrix/run-termux-hrtf-matrix.sh" \
   "$HOME/libphonon-stage31.so" \
   /vendor/etc/axionfx/hrtf/sadie_h12.sofa 2>&1 \
   | tee /sdcard/Download/JamesDSP_HRTF_Compatibility_Matrix.txt
+curl -fL \
+  https://raw.githubusercontent.com/ValveSoftware/steam-audio/v4.8.1/core/data/hrtf/cipic_124.sofa \
+  -o "$HOME/cipic_124.sofa"
+bash "$HOME/jdsp-hrtf-matrix/run-termux-hrtf-matrix.sh" \
+  "$HOME/libphonon-stage31.so" "$HOME/cipic_124.sofa" 2>&1 \
+  | tee /sdcard/Download/JamesDSP_HRTF_CIPIC_Matrix.txt
 ```
 
 The runner refuses any library whose SHA-256 differs from the known Stage 31
 copy. It records context creation status separately from the full numeric and
 named HRTF error, and releases every created HRTF/context. A readable SOFA path
-is tested directly; an unavailable one is explicitly skipped. Return
-`/sdcard/Download/JamesDSP_HRTF_Compatibility_Matrix.txt` and the device's `sha256sum` for the installed
-`/vendor/lib64/soundfx/libphonon.so` before choosing a code change. No source
-patch or replacement ZIP has been made for the 96 kHz issue.
+is tested directly; an unavailable one is explicitly skipped. The user-provided
+default and CIPIC matrices are preserved in `TEST_RESULTS.md` and in the new
+candidate package's `reference/` directory.
+
+## Separate high-rate CIPIC candidate
+
+The follow-up package is a separate opt-in artifact; the earlier bridge-only
+ZIP and Stage 31 release remain unchanged. It preserves module ID
+`jamesdsp_orbit_stage29`, keeps the embedded default HRTF at 44.1/48 kHz, and
+uses the bundled CIPIC SOFA at 88.2/96 kHz. The exact Stage 31 Steam Audio
+library initialized that SOFA at all tested rates and frame sizes. This is
+initialization evidence, not proof of audible device output; Android 16,
+reboot, playback and extended stress checks remain pending. Back up the known-
+good package, install only as an in-place opt-in update through KernelSU
+Manager, test briefly at low volume, and roll back by disabling the module and
+restoring the saved package if audio is abnormal.
+
+Download the [separate CIPIC HRTF experimental ZIP](https://raw.githubusercontent.com/Riku-lgtm43/RootJamesDSP/fix/ldac-orbit-native/experimental/ldac-orbit/artifacts/JamesDSP_Orbit_LDAC_CIPIC_HRTF_Experimental_KernelSU.zip).
+Its SHA-256 is
+`3e65077f40c83a7cff404d3837d3b5ea98997cb57b9586e5ff3adbf22b9a967e`.
+The [verification report](artifacts/JamesDSP_Orbit_LDAC_CIPIC_HRTF_Verification_Report.md)
+includes binary hashes, signature checks, file-level comparison, tests, and
+remaining device validation.
 
 ## Termux package reassembly
 

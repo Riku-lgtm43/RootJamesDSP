@@ -3,10 +3,13 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <vector>
 
 extern "C" void mockSetFailHrtf(bool fail);
 extern "C" int mockLastRate();
+extern "C" IPLHRTFType mockLastHrtfType();
+extern "C" const char* mockLastSofaPath();
 
 static void require(bool ok, const char* what) {
     if (!ok) { std::fprintf(stderr, "FAIL: %s\n", what); std::exit(1); }
@@ -26,6 +29,13 @@ static std::vector<float> render(int rate, const std::vector<int>& chunks) {
     spatial.setEnabled(true);
     require(spatial.isInitialized(), "mock Steam Audio init");
     require(mockLastRate() == rate, "sample rate passed to HRTF");
+    if (rate == 88200 || rate == 96000) {
+        require(mockLastHrtfType() == IPL_HRTFTYPE_SOFA, "SOFA selected above embedded default rates");
+        require(std::strcmp(mockLastSofaPath(), "/vendor/etc/axionfx/hrtf/cipic_124.sofa") == 0,
+                "bundled CIPIC SOFA path selected at high rates");
+    } else {
+        require(mockLastHrtfType() == IPL_HRTFTYPE_DEFAULT, "embedded default retained at 44.1/48 kHz");
+    }
     std::vector<float> output(input.size());
     int pos = 0, n = 0;
     while (pos < frames) {
@@ -73,7 +83,7 @@ static std::vector<float> render(int rate, const std::vector<int>& chunks) {
 int main() {
     const std::vector<int> oneBlock{128};
     const std::vector<int> irregular{1,64,96,127,128,129,192,240,256,480,512,882,960,1024,1920,2048};
-    for (int rate : {44100, 48000, 96000}) {
+    for (int rate : {44100, 48000, 88200, 96000}) {
         auto a = render(rate, oneBlock);
         auto b = render(rate, irregular);
         require(a.size() == b.size(), "render lengths match");
@@ -100,6 +110,20 @@ int main() {
     spatial.process(bypass.data(), 256);
     require(bypass == bypassOriginal, "Orbit OFF is bit-exact bypass");
     std::puts("PASS init failure bypass and recovery");
+
+    spatial.configure(96000);
+    mockSetFailHrtf(true);
+    spatial.setEnabled(true);
+    require(!spatial.isInitialized(), "failed high-rate SOFA init stays disabled");
+    std::vector<float> highRateDry(512, -0.0625f), highRateOriginal = highRateDry;
+    spatial.process(highRateDry.data(), 256);
+    require(highRateDry == highRateOriginal, "high-rate HRTF failure leaves input unchanged");
+    spatial.setEnabled(false);
+    mockSetFailHrtf(false);
+    spatial.setEnabled(true);
+    require(spatial.isInitialized(), "high-rate SOFA init can recover after retry");
+    spatial.setEnabled(false);
+    std::puts("PASS high-rate init failure bypass and recovery");
 
     spatial.setEnabled(true);
     std::vector<float> signal(4096, 0.1f);
