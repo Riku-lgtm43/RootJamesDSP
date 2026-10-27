@@ -1,0 +1,113 @@
+name: Root F-Droid debug APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - orbit-integration
+
+permissions:
+  contents: read
+
+concurrency:
+  group: root-fdroid-debug-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and validate rooted APKs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out source and submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK components
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.0.12077973" "cmake;3.22.1"
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Build rooted F-Droid debug APK and run unit tests
+        run: >-
+          ./gradlew --no-daemon --stacktrace --max-workers=2
+          :app:assembleRootFdroidDebug
+          :app:testRootFdroidDebugUnitTest
+
+      - name: Generate checksums and build report
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="app/build/outputs/apk/rootFdroid/debug"
+          arm64="$output/JamesDSP-v1.6.14-51-root-fdroid-arm64-v8a-debug.apk"
+          universal="$output/JamesDSP-v1.6.14-51-root-fdroid-universal-debug.apk"
+          test -s "$arm64"
+          test -s "$universal"
+          mkdir -p delivery-report
+          sha256sum "$arm64" "$universal" > delivery-report/SHA256SUMS
+          {
+            echo "# Root F-Droid debug build report"
+            echo
+            echo "- Repository: $GITHUB_REPOSITORY"
+            echo "- Branch: ${GITHUB_REF_NAME}"
+            echo "- Commit: $GITHUB_SHA"
+            echo "- Run: https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo "- Command: ./gradlew --no-daemon --stacktrace --max-workers=2 :app:assembleRootFdroidDebug :app:testRootFdroidDebugUnitTest"
+            echo "- Unit test results:"
+            python3 - <<'PY'
+          import glob, xml.etree.ElementTree as ET
+          paths = glob.glob("app/build/test-results/testRootFdroidDebugUnitTest/TEST-*.xml")
+          if not paths:
+              raise SystemExit("No unit-test XML results found")
+          totals = {key: 0 for key in ("tests", "failures", "errors", "skipped")}
+          for path in paths:
+              root = ET.parse(path).getroot()
+              for key in totals:
+                  totals[key] += int(root.attrib.get(key, 0))
+          if totals["tests"] == 0 or totals["failures"] or totals["errors"]:
+              raise SystemExit(f"Unit tests did not pass: {totals}")
+          print(f"  - Executed: {totals['tests']}")
+          print(f"  - Failed: {totals['failures']}")
+          print(f"  - Errors: {totals['errors']}")
+          print(f"  - Skipped: {totals['skipped']}")
+          PY
+            echo "- APK SHA-256:"
+            cat delivery-report/SHA256SUMS
+          } > delivery-report/BUILD-REPORT.md
+
+      - name: Upload ARM64 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: root-fdroid-debug-arm64-${{ github.sha }}
+          path: app/build/outputs/apk/rootFdroid/debug/JamesDSP-v1.6.14-51-root-fdroid-arm64-v8a-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload universal APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: root-fdroid-debug-universal-${{ github.sha }}
+          path: app/build/outputs/apk/rootFdroid/debug/JamesDSP-v1.6.14-51-root-fdroid-universal-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload checksums and build report
+        uses: actions/upload-artifact@v4
+        with:
+          name: root-fdroid-debug-report-${{ github.sha }}
+          path: delivery-report/
+          if-no-files-found: error
+          retention-days: 30
