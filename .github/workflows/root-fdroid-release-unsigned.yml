@@ -1,0 +1,57 @@
+name: Root F-Droid unsigned release APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [orbit-integration]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - uses: android-actions/setup-android@v4
+      - name: Install Android build dependencies
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.0.12077973" "cmake;3.22.1"
+      - uses: gradle/actions/wrapper-validation@v4
+      - name: Build unsigned release and run unit tests
+        run: ./gradlew --no-daemon --stacktrace --max-workers=2 :app:assembleRootFdroidRelease :app:testRootFdroidDebugUnitTest
+      - name: Verify unsigned release APK and write report
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk=$(find app/build/outputs/apk/rootFdroid/release -maxdepth 1 -name '*universal-release-unsigned.apk' -print -quit)
+          test -s "$apk"
+          mkdir -p release-report
+          sha256sum "$apk" > release-report/SHA256SUMS
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$apk" > release-report/APK-METADATA.txt
+          grep -q "package: name='james.dsp'" release-report/APK-METADATA.txt
+          {
+            echo "Stage 31 Deployable — Stress Test Pending"
+            echo "Commit: $GITHUB_SHA"
+            echo "Workflow: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "Unsigned APK: $apk"
+            echo "Tests: app/build/test-results/testRootFdroidDebugUnitTest"
+            cat release-report/SHA256SUMS
+          } > release-report/BUILD-REPORT.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: root-fdroid-release-unsigned-${{ github.sha }}
+          path: |
+            app/build/outputs/apk/rootFdroid/release/*arm64-v8a-release-unsigned.apk
+            app/build/outputs/apk/rootFdroid/release/*universal-release-unsigned.apk
+            release-report/
+          if-no-files-found: error
+          retention-days: 30
