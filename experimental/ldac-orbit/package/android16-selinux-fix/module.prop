@@ -1,0 +1,6 @@
+id=jamesdsp_orbit_stage29
+name=JamesDSP Orbit Stage31 - Android 16 SELinux Candidate (Experimental)
+version=37-android16-vendor-config-label
+versionCode=37
+author=JamesDSP Orbit contributors
+description=Experimental ARM64 engine audit with vendor configuration SELinux labels. Android 16 runtime, AAC/USB and extended stress validation pending.
