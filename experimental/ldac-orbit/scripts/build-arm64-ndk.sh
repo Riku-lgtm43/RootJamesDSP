@@ -21,10 +21,10 @@ OBJS=()
 for f in "${CFILES[@]}"; do
   obj="$OUT/obj/${f//\//_}.o"
   if [[ "$f" == *.cpp ]]; then
-    "$CXX" -std=c++17 -fPIC -O2 \
+    "$CXX" -std=c++17 -fPIC -O2 -DJAMESDSP_REFERENCE_IMPL \
       -I"$SRC" -I"$SRC/orbit" -I"$PHONON_INC" -c "$SRC/$f" -o "$obj"
   else
-    "$CC" -std=gnu11 -fPIC -O2 \
+    "$CC" -std=gnu11 -fPIC -O2 -DJAMESDSP_REFERENCE_IMPL \
       -I"$SRC" -I"$SRC/orbit" -I"$PHONON_INC" -c "$SRC/$f" -o "$obj"
   fi
   OBJS+=("$obj")
