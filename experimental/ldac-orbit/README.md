@@ -184,8 +184,7 @@ Its SHA-256 is `c34d15b14ed560e5e19347681af83a1f97a4eb2f6dc1208dabb98db83ea163cc
 [config-guard verification report](artifacts/JamesDSP_Orbit_LDAC_CIPIC_HRTF_ConfigGuard_Verification_Report.md)
 before installing.
 
-The previous no-logging package remains available unchanged:
-[download the previous experimental ZIP](https://raw.githubusercontent.com/Riku-lgtm43/RootJamesDSP/fix/ldac-orbit-native/experimental/ldac-orbit/artifacts/JamesDSP_Orbit_LDAC_CIPIC_HRTF_Experimental_KernelSU_NoLogs.zip).
+Download the [no-diagnostic-logging experimental ZIP](https://raw.githubusercontent.com/Riku-lgtm43/RootJamesDSP/fix/ldac-orbit-native/experimental/ldac-orbit/artifacts/JamesDSP_Orbit_LDAC_CIPIC_HRTF_Experimental_KernelSU_NoLogs.zip).
 Its SHA-256 is
 `643357f02277556bc203cecf9e0b43a98f76e38bc85c9f40dde324645cffa19e`.
 The matching verification report is
