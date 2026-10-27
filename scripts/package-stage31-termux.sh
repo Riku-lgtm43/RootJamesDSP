@@ -4,8 +4,9 @@ MODULE_ZIP=${1:?Usage: package-stage31-termux.sh STAGE31.zip signed-root.apk [ou
 SIGNED_APK=${2:?Usage: package-stage31-termux.sh STAGE31.zip signed-root.apk [output.zip]}
 OUTPUT=${3:-JamesDSP-Stage31-Deployable-Stress-Test-Pending.zip}
 EXPECTED_ID=jamesdsp_orbit_stage29
-source "$(dirname "$0")/termux-android-tools.sh"
-source "$(dirname "$0")/termux-package-detection.sh"
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+source "$SCRIPT_DIR/termux-android-tools.sh"
+source "$SCRIPT_DIR/termux-package-detection.sh"
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 for tool in python unzip zip sha256sum; do command -v "$tool" >/dev/null || exit 1; done
 python - "$MODULE_ZIP" "$TMP/module" <<'PY'
@@ -17,6 +18,7 @@ with zipfile.ZipFile(archive) as z:
  for i in z.infolist():
   p=pathlib.PurePosixPath(i.filename); mode=i.external_attr>>16
   if p.is_absolute() or '..' in p.parts or stat.S_ISLNK(mode): raise SystemExit(f"Unsafe ZIP entry: {i.filename}")
+  if p.suffix.lower() in {'.jks','.keystore','.p12','.pfx','.pem','.key'}: raise SystemExit(f"Refusing to package signing/private-key material: {i.filename}")
  z.extractall(root)
 PY
 M="$TMP/module"
@@ -26,7 +28,9 @@ for p in system/vendor/lib64/soundfx/libjamesdsp_orbit.so system/vendor/lib64/so
 APKSIGNER=$(find_android_tool apksigner)
 AAPT=$(find_android_tool aapt)
 "$APKSIGNER" verify --verbose --print-certs "$SIGNED_APK"
-"$AAPT" dump badging "$SIGNED_APK" | grep -m1 "package: name='james.dsp'"
+BADGING=$("$AAPT" dump badging "$SIGNED_APK")
+grep -q "package: name='james.dsp'" <<< "$BADGING"
+cp "$SCRIPT_DIR/README-Stage31-Combined.txt" "$M/README.txt"
 PACKAGE_STATUS=$(termux_package_status james.dsp)
 case "$PACKAGE_STATUS" in
   installed) echo 'james.dsp is already installed. Resolve package/signature upgrade first; refusing duplicate systemless installation.' >&2; exit 1 ;;
