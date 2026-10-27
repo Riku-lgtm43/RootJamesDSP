@@ -93,3 +93,34 @@ audible. Test short playback first: Orbit OFF then ON at LDAC 44.1, 48, and
 crackle, popping, dropout, or abnormal level. Do not perform extended playback
 until every short test is clean. Do not call LDAC fixed until the user reports
 device results.
+
+## Termux package reassembly
+
+The exact tested candidate ZIP and its checksum are committed under
+`artifacts/` on branch `fix/ldac-orbit-native`. Download that ZIP directly
+from GitHub if an in-chat attachment cannot be opened. The Termux helper
+reassembles the same uncompressed package members over the original Stage 31
+ZIP using the already-tested Orbit library from the committed candidate. It
+does not compile or alter native DSP. It checks both input ZIP hashes,
+confirms the signed APK, support libraries, audio XML, and installer match
+Stage 31, compares every final member byte-for-byte with the committed
+candidate, then writes and verifies an output checksum sidecar. ZIP container
+metadata can make the reassembled ZIP's outer SHA differ from the committed
+ZIP while all uncompressed member bytes remain identical.
+
+From the repository root in Termux:
+
+```sh
+bash experimental/ldac-orbit/scripts/repack-stage31-termux.sh \
+  "$HOME/storage/downloads/JamesDSP_Orbit_LDAC_FrameBridge_Experimental_KernelSU.zip"
+```
+
+The script downloads the candidate from the branch and the original Stage 31
+release ZIP. It also accepts local inputs:
+
+```sh
+bash experimental/ldac-orbit/scripts/repack-stage31-termux.sh \
+  "$HOME/storage/downloads/JamesDSP_Orbit_LDAC_FrameBridge_Experimental_KernelSU.zip" \
+  experimental/ldac-orbit/artifacts/JamesDSP_Orbit_LDAC_FrameBridge_Experimental_KernelSU.zip \
+  "$HOME/storage/downloads/JamesDSP-Stage31-Combined-Deployable-Corrected.zip"
+```
