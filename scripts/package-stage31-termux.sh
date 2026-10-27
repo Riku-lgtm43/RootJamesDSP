@@ -5,6 +5,7 @@ SIGNED_APK=${2:?Usage: package-stage31-termux.sh STAGE31.zip signed-root.apk [ou
 OUTPUT=${3:-JamesDSP-Stage31-Deployable-Stress-Test-Pending.zip}
 EXPECTED_ID=jamesdsp_orbit_stage29
 source "$(dirname "$0")/termux-android-tools.sh"
+source "$(dirname "$0")/termux-package-detection.sh"
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 for tool in python unzip zip sha256sum; do command -v "$tool" >/dev/null || exit 1; done
 python - "$MODULE_ZIP" "$TMP/module" <<'PY'
@@ -26,8 +27,12 @@ APKSIGNER=$(find_android_tool apksigner)
 AAPT=$(find_android_tool aapt)
 "$APKSIGNER" verify --verbose --print-certs "$SIGNED_APK"
 "$AAPT" dump badging "$SIGNED_APK" | grep -m1 "package: name='james.dsp'"
-if command -v pm >/dev/null && pm path james.dsp >/dev/null 2>&1; then echo 'james.dsp is already installed. Resolve package/signature upgrade first; refusing duplicate systemless installation.' >&2; exit 1; fi
-if command -v pm >/dev/null && pm list packages -3 2>/dev/null | grep -q '^package:james\.dsp$'; then echo 'Conflicting user-installed james.dsp; resolve upgrade/signature before package install.' >&2; exit 1; fi
+PACKAGE_STATUS=$(termux_package_status james.dsp)
+case "$PACKAGE_STATUS" in
+  installed) echo 'james.dsp is already installed. Resolve package/signature upgrade first; refusing duplicate systemless installation.' >&2; exit 1 ;;
+  absent) ;;
+  *) echo 'Unable to determine whether james.dsp is installed. Resolve the package lookup failure before packaging.' >&2; exit 1 ;;
+esac
 mkdir -p "$M/system/app/JamesDSP"; cp "$SIGNED_APK" "$M/system/app/JamesDSP/JamesDSP.apk"; chmod 0644 "$M/system/app/JamesDSP/JamesDSP.apk"
 (cd "$M" && sha256sum -c reference/binary_checksums.txt && zip -qr "$TMP/out.zip" .)
 mkdir -p "$(dirname "$OUTPUT")"; cp "$TMP/out.zip" "$OUTPUT"; unzip -t "$OUTPUT"
