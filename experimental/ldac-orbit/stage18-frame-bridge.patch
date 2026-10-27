@@ -217,3 +217,50 @@
 +    int mFadeOutRemaining = 0;
 +    float mFadeOutInitialGain = 0.0f;
 +    bool mFadeInStarted = false;
+--- a/source/jamesdsp.c
++++ b/source/jamesdsp.c
+@@ -56 +56,5 @@
+-        jdsp_legacy_orbit_configure(e->orbit_context, (const effect_config_t *)pCmdData, result == 0);
++        int32_t configStatus = -EINVAL;
++        if (result == 0 && replySize && *replySize >= sizeof(configStatus) && pReplyData)
++            memcpy(&configStatus, pReplyData, sizeof(configStatus));
++        jdsp_legacy_orbit_configure(e->orbit_context, (const effect_config_t *)pCmdData,
++                                    result == 0 && configStatus == 0);
+--- a/source/jamesdsp_aidl.h
++++ b/source/jamesdsp_aidl.h
+@@ -25,0 +26 @@
++#include <climits>
+@@ -92,3 +93,2 @@
+-        // Disable orbit before changing its configuration. Publishing true first
+-        // lets the audio callback observe an eligible format while the previous
+-        // sample-rate configuration is still active.
++        // Disable Orbit before changing its configuration so the audio worker
++        // cannot process with stale rate or format state during reconfiguration.
+@@ -95,0 +96,3 @@
++        constexpr uint16_t requiredMask = EFFECT_CONFIG_SMP_RATE |
++                                          EFFECT_CONFIG_CHANNELS |
++                                          EFFECT_CONFIG_FORMAT;
+@@ -96,0 +100,2 @@
++            (conf.inputCfg.mask & requiredMask) == requiredMask &&
++            (conf.outputCfg.mask & requiredMask) == requiredMask &&
+@@ -100 +105,4 @@
+-            conf.outputCfg.format == AUDIO_FORMAT_PCM_FLOAT;
++            conf.outputCfg.format == AUDIO_FORMAT_PCM_FLOAT &&
++            conf.inputCfg.samplingRate == conf.outputCfg.samplingRate &&
++            conf.inputCfg.samplingRate > 0 &&
++            conf.inputCfg.samplingRate <= INT_MAX;
+@@ -102 +110 @@
+-            orbit_.configure(static_cast<int>(e->mSamplingRate));
++            orbit_.configure(static_cast<int>(conf.inputCfg.samplingRate));
+@@ -128 +136,2 @@
+-            out->frameCount > 0 && out->frameCount <= static_cast<size_t>(INT32_MAX)) {
++            in && in->frameCount == out->frameCount && out->frameCount > 0 &&
++            out->frameCount <= static_cast<size_t>(INT32_MAX)) {
+--- a/source/legacy_orbit_c.cpp
++++ b/source/legacy_orbit_c.cpp
+@@ -21,0 +22,5 @@
++    constexpr uint16_t requiredMask = EFFECT_CONFIG_SMP_RATE |
++                                      EFFECT_CONFIG_CHANNELS |
++                                      EFFECT_CONFIG_FORMAT;
++    if ((c.inputCfg.mask & requiredMask) != requiredMask ||
++        (c.outputCfg.mask & requiredMask) != requiredMask) return;

@@ -86,3 +86,31 @@ build showed successful 96 kHz CIPIC initialization. The final no-logging
 build adds startup/quick-disable/reset edge-case fixes and has not been
 separately installed. AAC/USB, Android 16 reboot/install, and extended
 stability/stress testing remain pending.
+
+## JamesDSP connection guard follow-up
+
+The legacy effect entry point registers the same JamesDSP implementation UUID
+used by the app. The app sends Orbit parameter IDs `0x1000`, `0x1001`,
+`0x1003`, `0x1005`, and `0x1006`; the native bridge handles those IDs and
+forwards all others to the original JamesDSP command handler. `process()` runs
+JamesDSP first, then applies Orbit to its float output only after JamesDSP
+returns success and the buffers describe the same stereo frame count.
+
+The follow-up guard now requires accepted `SET_CONFIG` transport and reply
+status plus explicit input/output sample-rate, channel, and format mask bits.
+It also requires matching positive rates, stereo channel masks, and float PCM.
+The AIDL adapter mirrors the same eligibility rule and frame-count check. An
+ASan/UBSan integration regression invokes the real legacy `EffectCreate`,
+`command`, and `process` functions with a stub JamesDSP core. It verifies
+parameter set/readback, post-DSP Orbit changes, rejected-config bypass,
+missing-mask bypass, rate/channel/format rejection, and no Orbit processing
+when JamesDSP returns `-ENODATA`.
+
+An ARM64 same-path rebuild comparison against the immediately prior source
+reproduced the prior library hash exactly (`697f0caf...`). Applying this guard
+changed only `jamesdsp.c.o` and `legacy_orbit_c.cpp.o`; all 88 other objects,
+including the JamesDSP DSP core and Orbit audio-processing implementation,
+remained byte-identical. The new library keeps the same exports, dependencies,
+and RUNPATH. The existing experimental ZIP and Stage 31 release are unchanged;
+the config-guard package is a separate artifact and still needs device
+confirmation.

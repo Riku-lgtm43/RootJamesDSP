@@ -86,11 +86,9 @@ the backed-up Stage 31 ZIP and reboot. Keep the current signed app, module
 backup, and settings backup. Never flash the ZIP from recovery on an unknown
 ROM.
 
-Short device playback has now been reported clean at LDAC 44.1 and 48 kHz,
-with Orbit audible at the device's negotiated 96 kHz rate. The capture also
-showed active JamesDSP processing and successful high-rate CIPIC initialization
-on the preceding diagnostic build. Diagnostic logging has since been removed
-from the candidate. The no-logging rebuild has not yet been separately
+Short device playback was reported clean at LDAC 44.1 and 48 kHz, with Orbit
+audible at the device's negotiated 96 kHz rate. Those results apply to the
+preceding candidate. The current config-guard build has not been separately
 installed; AAC/USB, Android 16 reboot/update, and extended stress tests remain
 pending.
 
@@ -165,19 +163,26 @@ candidate package's `reference/` directory.
 
 ## Separate high-rate CIPIC candidate
 
-The no-diagnostic-logging package is a new opt-in artifact. The earlier
-bridge-only package, previous CIPIC package, and Stage 31 release remain
-unchanged. The module ID stays `jamesdsp_orbit_stage29`; embedded HRTF remains
-in use at 44.1/48 kHz, and bundled CIPIC SOFA is used at 88.2/96 kHz.
+The config-guard package is a new opt-in artifact. The bridge-only, CIPIC,
+no-logging packages, and Stage 31 release remain unchanged. The module ID stays
+`jamesdsp_orbit_stage29`; embedded HRTF remains in use at 44.1/48 kHz, and
+bundled CIPIC SOFA is used at 88.2/96 kHz.
 
 The rooted capture confirmed active JamesDSP processing and successful CIPIC
 initialization at the actual 96 kHz LDAC rate. The user reported no crackling or
 popping at 44.1/48 kHz and audible Orbit at 96 kHz. Those short playback
-results came from the immediately preceding build; the final rebuild removes
-Orbit diagnostic logging and unused status bookkeeping, and hardens startup,
-quick-disable, reset, and high-rate HRTF failure paths without changing steady-
-state DSP/HRTF behavior. This refined build has not yet been installed separately. AAC/USB, Android 16
-update/reboot, and extended stability/stress tests remain pending.
+results came from the preceding build. The new rebuild retains its no-logging
+startup, transition, reset, and high-rate HRTF fixes, and adds stricter
+configuration eligibility: Orbit runs only after a successful JamesDSP config
+reply and when both configs explicitly describe matching-rate stereo-float PCM.
+This guard does not change valid-route audio processing. The new build has not
+yet been installed separately. AAC/USB, Android 16 update/reboot, and extended
+stability/stress tests remain pending.
+
+Download the [config-guard experimental ZIP](https://raw.githubusercontent.com/Riku-lgtm43/RootJamesDSP/fix/ldac-orbit-native/experimental/ldac-orbit/artifacts/JamesDSP_Orbit_LDAC_CIPIC_HRTF_Experimental_KernelSU_ConfigGuard.zip).
+Its SHA-256 is `c34d15b14ed560e5e19347681af83a1f97a4eb2f6dc1208dabb98db83ea163cc`. Read the
+[config-guard verification report](artifacts/JamesDSP_Orbit_LDAC_CIPIC_HRTF_ConfigGuard_Verification_Report.md)
+before installing.
 
 Download the [no-diagnostic-logging experimental ZIP](https://raw.githubusercontent.com/Riku-lgtm43/RootJamesDSP/fix/ldac-orbit-native/experimental/ldac-orbit/artifacts/JamesDSP_Orbit_LDAC_CIPIC_HRTF_Experimental_KernelSU_NoLogs.zip).
 Its SHA-256 is
@@ -187,7 +192,7 @@ The matching verification report is
 
 ## Termux package reassembly
 
-The helper reassembles the no-diagnostic-logging package from the original
+The helper reassembles the config-guard package from the original
 Stage 31 ZIP plus the committed experimental candidate. It verifies both input
 ZIP hashes, checks protected Stage 31 payloads, overlays candidate members,
 then compares every final member byte-for-byte against the verified candidate.
@@ -202,7 +207,7 @@ curl -fL \
   https://raw.githubusercontent.com/Riku-lgtm43/RootJamesDSP/fix/ldac-orbit-native/experimental/ldac-orbit/scripts/repack-stage31-termux.sh \
   -o "$HOME/repack-stage31-termux.sh"
 bash "$HOME/repack-stage31-termux.sh" \
-  "$HOME/storage/downloads/JamesDSP_Orbit_LDAC_CIPIC_HRTF_Experimental_KernelSU_NoLogs.zip"
+  "$HOME/storage/downloads/JamesDSP_Orbit_LDAC_CIPIC_HRTF_Experimental_KernelSU_ConfigGuard.zip"
 ```
 
 The script downloads the candidate and original Stage 31 ZIP when local inputs

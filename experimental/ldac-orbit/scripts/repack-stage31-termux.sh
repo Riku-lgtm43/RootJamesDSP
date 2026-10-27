@@ -20,7 +20,7 @@ TMP=$(mktemp -d "$TMP_BASE/jdsp-cipic-nolog.XXXXXXXX")
 trap 'rm -rf -- "$TMP"' EXIT
 
 RAW_BASE=https://raw.githubusercontent.com/Riku-lgtm43/RootJamesDSP/fix/ldac-orbit-native/experimental/ldac-orbit/artifacts
-CANDIDATE_SHA=643357f02277556bc203cecf9e0b43a98f76e38bc85c9f40dde324645cffa19e
+CANDIDATE_SHA=c34d15b14ed560e5e19347681af83a1f97a4eb2f6dc1208dabb98db83ea163cc
 STAGE31_SHA=0799875e20dcf2a05fdf99d08379344d8795641f0d17c99e301e6a994da34b44
 CANDIDATE="$TMP/candidate.zip"
 STAGE31="$TMP/stage31.zip"
@@ -28,7 +28,7 @@ STAGE31="$TMP/stage31.zip"
 if [ "$#" -ge 2 ]; then
   cp "$2" "$CANDIDATE"
 else
-  curl -fL --retry 3 "$RAW_BASE/JamesDSP_Orbit_LDAC_CIPIC_HRTF_Experimental_KernelSU_NoLogs.zip" -o "$CANDIDATE"
+  curl -fL --retry 3 "$RAW_BASE/JamesDSP_Orbit_LDAC_CIPIC_HRTF_Experimental_KernelSU_ConfigGuard.zip" -o "$CANDIDATE"
 fi
 printf '%s  %s\n' "$CANDIDATE_SHA" "$CANDIDATE" | sha256sum -c -
 if [ "$#" -ge 3 ]; then
