@@ -4,6 +4,7 @@ MODULE_ZIP=${1:?Usage: package-stage31-termux.sh STAGE31.zip signed-root.apk [ou
 SIGNED_APK=${2:?Usage: package-stage31-termux.sh STAGE31.zip signed-root.apk [output.zip]}
 OUTPUT=${3:-JamesDSP-Stage31-Deployable-Stress-Test-Pending.zip}
 EXPECTED_ID=jamesdsp_orbit_stage29
+source "$(dirname "$0")/termux-android-tools.sh"
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 for tool in python unzip zip sha256sum; do command -v "$tool" >/dev/null || exit 1; done
 python - "$MODULE_ZIP" "$TMP/module" <<'PY'
@@ -21,9 +22,11 @@ M="$TMP/module"
 [[ $(sed -n 's/^id=//p' "$M/module.prop") == "$EXPECTED_ID" ]]
 for p in system/vendor/lib64/soundfx/libjamesdsp_orbit.so system/vendor/lib64/soundfx/libphonon.so system/vendor/lib64/soundfx/libc++_shared.so system/vendor/etc/audio_effects.xml; do [[ -s "$M/$p" ]]; done
 (cd "$M" && sha256sum -c reference/binary_checksums.txt)
-SDK=${ANDROID_HOME:-$HOME/Android/Sdk}; BT="$SDK/build-tools/35.0.0"
-"$BT/apksigner" verify --verbose --print-certs "$SIGNED_APK"
-"$BT/aapt" dump badging "$SIGNED_APK" | grep -m1 "package: name='james.dsp'"
+APKSIGNER=$(find_android_tool apksigner)
+AAPT=$(find_android_tool aapt)
+"$APKSIGNER" verify --verbose --print-certs "$SIGNED_APK"
+"$AAPT" dump badging "$SIGNED_APK" | grep -m1 "package: name='james.dsp'"
+if command -v pm >/dev/null && pm path james.dsp >/dev/null 2>&1; then echo 'james.dsp is already installed. Resolve package/signature upgrade first; refusing duplicate systemless installation.' >&2; exit 1; fi
 if command -v pm >/dev/null && pm list packages -3 2>/dev/null | grep -q '^package:james\.dsp$'; then echo 'Conflicting user-installed james.dsp; resolve upgrade/signature before package install.' >&2; exit 1; fi
 mkdir -p "$M/system/app/JamesDSP"; cp "$SIGNED_APK" "$M/system/app/JamesDSP/JamesDSP.apk"; chmod 0644 "$M/system/app/JamesDSP/JamesDSP.apk"
 (cd "$M" && sha256sum -c reference/binary_checksums.txt && zip -qr "$TMP/out.zip" .)
