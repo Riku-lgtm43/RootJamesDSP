@@ -1,0 +1,82 @@
+bypass rate=44100 max_abs_error=0 rms_error=0
+bypass rate=48000 max_abs_error=0 rms_error=0
+callback rate=44100 frames=1 us=4.777
+callback rate=44100 frames=64 us=1.242
+callback rate=44100 frames=96 us=1.543
+callback rate=44100 frames=127 us=2.263
+callback rate=44100 frames=128 us=1.993
+callback rate=44100 frames=129 us=5.739
+callback rate=44100 frames=192 us=3.795
+callback rate=44100 frames=240 us=5.017
+callback rate=44100 frames=256 us=4.507
+callback rate=44100 frames=480 us=8.323
+callback rate=44100 frames=512 us=8.713
+callback rate=44100 frames=882 us=14.351
+callback rate=44100 frames=960 us=15.503
+callback rate=44100 frames=1024 us=16.725
+callback rate=44100 frames=1920 us=29.894
+callback rate=44100 frames=2048 us=32.368
+rate=44100 frames=9059 retained_capacity=2048 asrc=0 core_rate=44100
+callback rate=48000 frames=1 us=0.821
+callback rate=48000 frames=64 us=1.032
+callback rate=48000 frames=96 us=1.512
+callback rate=48000 frames=127 us=1.903
+callback rate=48000 frames=128 us=1.913
+callback rate=48000 frames=129 us=1.933
+callback rate=48000 frames=192 us=2.805
+callback rate=48000 frames=240 us=3.466
+callback rate=48000 frames=256 us=3.685
+callback rate=48000 frames=480 us=6.770
+callback rate=48000 frames=512 us=7.231
+callback rate=48000 frames=882 us=12.358
+callback rate=48000 frames=960 us=13.420
+callback rate=48000 frames=1024 us=14.341
+callback rate=48000 frames=1920 us=27.211
+callback rate=48000 frames=2048 us=28.462
+rate=48000 frames=9059 retained_capacity=2048 asrc=0 core_rate=48000
+callback rate=88200 frames=1 us=13.580
+callback rate=88200 frames=64 us=21.893
+callback rate=88200 frames=96 us=31.647
+callback rate=88200 frames=127 us=41.302
+callback rate=88200 frames=128 us=41.662
+callback rate=88200 frames=129 us=42.273
+callback rate=88200 frames=192 us=62.082
+callback rate=88200 frames=240 us=78.818
+callback rate=88200 frames=256 us=97.535
+callback rate=88200 frames=480 us=154.590
+callback rate=88200 frames=512 us=165.206
+callback rate=88200 frames=882 us=285.155
+callback rate=88200 frames=960 us=321.239
+callback rate=88200 frames=1024 us=328.991
+callback rate=88200 frames=1920 us=659.444
+callback rate=88200 frames=2048 us=656.599
+rate=88200 frames=9059 retained_capacity=2048 asrc=1 core_rate=44100
+callback rate=96000 frames=1 us=13.840
+callback rate=96000 frames=64 us=21.833
+callback rate=96000 frames=96 us=31.597
+callback rate=96000 frames=127 us=41.092
+callback rate=96000 frames=128 us=41.672
+callback rate=96000 frames=129 us=42.443
+callback rate=96000 frames=192 us=62.202
+callback rate=96000 frames=240 us=79.018
+callback rate=96000 frames=256 us=82.683
+callback rate=96000 frames=480 us=155.382
+callback rate=96000 frames=512 us=177.775
+callback rate=96000 frames=882 us=284.874
+callback rate=96000 frames=960 us=307.278
+callback rate=96000 frames=1024 us=339.046
+callback rate=96000 frames=1920 us=614.076
+callback rate=96000 frames=2048 us=690.990
+rate=96000 frames=9059 retained_capacity=2048 asrc=1 core_rate=48000
+segmentation rate=44100 max_abs_error=0 rms_error=0
+segmentation rate=48000 max_abs_error=0 rms_error=0
+segmentation rate=88200 max_abs_error=0 rms_error=0
+segmentation rate=96000 max_abs_error=0 rms_error=0
+callback rate=48000 frames=128 us=6779.288
+callback rate=48000 frames=128 us=157.274
+PASS real JamesDSP engine host stream matrix
+wrapper rate=44100 orbit_max_delta=0.162057173
+wrapper rate=48000 orbit_max_delta=0.29915978
+wrapper rate=88200 orbit_max_delta=0.357021242
+wrapper rate=96000 orbit_max_delta=0.335587427
+PASS real JamesDSP and Orbit AudioEffect connection matrix (Steam Audio API mocked)

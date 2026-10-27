@@ -1,0 +1,9 @@
+source,rate_hz,max_abs_diff,rms_diff,ubsan_misalignment_reports,expected
+pristine,44100,0,0,yes,equivalent
+pristine,48000,0,0,yes,equivalent
+pristine,88200,0.530578226,0.00384082149,yes,divergence
+pristine,96000,0.473923266,0.00310114516,yes,divergence
+engine-audit,44100,0,0,no,equivalent
+engine-audit,48000,0,0,no,equivalent
+engine-audit,88200,0,0,no,equivalent
+engine-audit,96000,0,0,no,equivalent

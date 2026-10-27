@@ -1,4 +1,46 @@
-# LDAC Orbit frame bridge candidate
+# LDAC Orbit experimental candidates
+
+## Stage 18 engine-audit candidate
+
+This is the newest, separate opt-in ARM64 KernelSU package produced by the
+engine audit. Its module ID remains `jamesdsp_orbit_stage29`. It is not a
+production-stable release, has not been installed on the device, and does not
+replace or modify the published Stage 31 package or any earlier experimental
+ZIP. No installation or reboot is performed by the build workflow.
+
+The source changes repair a high-rate ASRC FIFO reallocation bug that made
+output depend on callback segmentation, avoid rebuilding disabled convolution
+and crossfeed state on callback-size changes, remove the corresponding
+real-time `printf`, remove the delayed reference benchmark from the release
+build, make packed PCM24 conversion defined, and correct signed PFB coefficient
+and workspace alignment. They also check configuration, command packet, and
+allocation failure paths. JamesDSP effect algorithms and controls, the signed
+APK, Steam Audio library, CIPIC SOFA, audio effects registration, and module
+identity are preserved.
+
+The full review is in [ENGINE_AUDIT.md](ENGINE_AUDIT.md), with detailed
+[architecture](ENGINE_ARCHITECTURE_AND_SOURCE_MAP.md),
+[baseline measurements](DSP_ENGINE_BASELINE_AND_BENCHMARKS.md),
+[discrepancy register](ENGINE_DISCREPANCY_REGISTER.md), and
+[fix verification](ENGINE_FIXES_AND_VERIFICATION.md). Download the separate
+candidate at
+[`artifacts/JamesDSP_Orbit_LDAC_CIPIC_HRTF_Experimental_KernelSU_EngineAudit.zip`](artifacts/JamesDSP_Orbit_LDAC_CIPIC_HRTF_Experimental_KernelSU_EngineAudit.zip);
+its SHA-256 sidecar is adjacent. Read its packaged verification report before
+any opt-in test.
+
+Before device testing, back up the installed module and the known-good Stage 31
+ZIP. Install only as an in-place update through KernelSU Manager. Stop playback
+on crackle, popping, dropouts, silence, or abnormal loudness. For rollback,
+disable the module and reboot, then restore the saved Stage 31 package through
+KernelSU Manager and reboot again. Android 16 installation/reboot, LDAC route
+transitions, AAC, USB DAC, all effect combinations, and extended stability
+testing remain pending for this new build. Earlier user playback results apply
+to the preceding candidate, not this package.
+
+## Earlier frame-bridge and CIPIC candidates
+
+The following sections document earlier artifacts and prior device reports.
+They are retained for provenance and do not describe the engine-audit ZIP.
 
 This is an opt-in experimental native update for the existing Stage 31
 KernelSU module. It keeps module ID `jamesdsp_orbit_stage29` and effect UUID
