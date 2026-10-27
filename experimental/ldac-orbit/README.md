@@ -97,8 +97,11 @@ device results.
 ## Termux package reassembly
 
 The exact tested candidate ZIP and its checksum are committed under
-`artifacts/` on branch `fix/ldac-orbit-native`. Download that ZIP directly
-from GitHub if an in-chat attachment cannot be opened. The Termux helper
+`artifacts/` on branch `fix/ldac-orbit-native`. Download the [exact ZIP from
+the branch](https://raw.githubusercontent.com/Riku-lgtm43/RootJamesDSP/fix/ldac-orbit-native/experimental/ldac-orbit/artifacts/JamesDSP_Orbit_LDAC_FrameBridge_Experimental_KernelSU.zip)
+if an in-chat attachment cannot be opened. Its SHA-256 is
+`44388287d08151490dac520c24038eb25a83e6a1aefe04479adc5c6778a90064`.
+The Termux helper
 reassembles the same uncompressed package members over the original Stage 31
 ZIP using the already-tested Orbit library from the committed candidate. It
 does not compile or alter native DSP. It checks both input ZIP hashes,
@@ -108,10 +111,14 @@ candidate, then writes and verifies an output checksum sidecar. ZIP container
 metadata can make the reassembled ZIP's outer SHA differ from the committed
 ZIP while all uncompressed member bytes remain identical.
 
-From the repository root in Termux:
+Install the Termux utilities if needed, then fetch and run the helper directly:
 
 ```sh
-bash experimental/ldac-orbit/scripts/repack-stage31-termux.sh \
+pkg install curl zip unzip coreutils findutils diffutils
+curl -fL \
+  https://raw.githubusercontent.com/Riku-lgtm43/RootJamesDSP/fix/ldac-orbit-native/experimental/ldac-orbit/scripts/repack-stage31-termux.sh \
+  -o "$HOME/repack-stage31-termux.sh"
+bash "$HOME/repack-stage31-termux.sh" \
   "$HOME/storage/downloads/JamesDSP_Orbit_LDAC_FrameBridge_Experimental_KernelSU.zip"
 ```
 
