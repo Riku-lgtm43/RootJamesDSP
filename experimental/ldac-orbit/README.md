@@ -94,6 +94,67 @@ crackle, popping, dropout, or abnormal level. Do not perform extended playback
 until every short test is clean. Do not call LDAC fixed until the user reports
 device results.
 
+## 96 kHz HRTF initialization investigation
+
+The supplied device diagnostic reports that the experimental library
+initialized Steam Audio at 48 kHz, then `iplHRTFCreate` returned error 3 at
+96 kHz. Inspection of the exact Stage 31 `libphonon.so` confirms its embedded
+default HRTF database lists only 24, 44.1, and 48 kHz. Steam Audio 4.8.1 source
+shows that its default HRTF map throws `Status::Initialization` when an exact
+sampling-rate entry is absent; `CContext::createHRTF` returns that as
+`IPL_STATUS_INITIALIZATION`. The HRTF map is constructed before the FFT
+objects, so changing `frameSize` cannot make the default 96 kHz HRTF initialize.
+This identifies the failing condition for the default profile and matches the
+reported error. The Stage 18 source used for the candidate initializes
+`mHrtfProfile` to 0, and `setHrtfProfile` has no caller in that source tree, so
+the shipped path defaults to the embedded database. A device-provided SADIE
+SOFA file would be a separate path; its actual availability and use still need
+device confirmation. The official header documents `frameSize` as samples per
+channel and does not restrict it to particular positive sizes. The exact
+Stage 31 `libphonon.so` has SHA-256
+`857612e669414165daabd95423d6fcf5fc51e57a8e2a0d07e0b39eadaacb0369`, build ID
+`020c11ef0d34b1431c84615ccf48973fd417e224`, and NEEDED dependencies `liblog`,
+`libm`, `libdl`, and `libc`. The embedded HRTF resource and sample-rate lookup
+function are byte-identical in the packaged library and Steam Audio 4.8.1 SDK
+library. This source/binary evidence establishes why the default profile
+fails, but the requested real-library Termux matrix has not been run on the
+device. No 96 kHz workaround or replacement package has been made.
+
+The diagnostic source in `diagnostics/` builds a standalone Termux executable
+which calls the original library directly. It tests default HRTF creation at
+44.1, 48, 88.2, and 96 kHz with frame sizes 128, 256, 512, and 1024. If the
+exact SADIE H12 path is readable, it repeats the matrix using that SOFA file.
+It does not alter vendor files or install a module. Run this complete block in
+Termux. It installs Termux-only build utilities, copies the installed library
+read-only into Termux private storage, downloads the diagnostic source and
+headers from this branch, and saves the matrix output to shared Downloads:
+
+```sh
+set -euo pipefail
+pkg install -y clang binutils coreutils curl
+termux-setup-storage
+mkdir -p "$HOME/jdsp-hrtf-matrix/include" /sdcard/Download
+BASE=https://raw.githubusercontent.com/Riku-lgtm43/RootJamesDSP/fix/ldac-orbit-native/experimental/ldac-orbit/diagnostics
+curl -fL "$BASE/hrtf_init_matrix.cpp" -o "$HOME/jdsp-hrtf-matrix/hrtf_init_matrix.cpp"
+curl -fL "$BASE/run-termux-hrtf-matrix.sh" -o "$HOME/jdsp-hrtf-matrix/run-termux-hrtf-matrix.sh"
+curl -fL "$BASE/include/phonon.h" -o "$HOME/jdsp-hrtf-matrix/include/phonon.h"
+curl -fL "$BASE/include/phonon_version.h" -o "$HOME/jdsp-hrtf-matrix/include/phonon_version.h"
+su -c 'sha256sum /vendor/lib64/soundfx/libphonon.so'
+su -c 'cat /vendor/lib64/soundfx/libphonon.so' > "$HOME/libphonon-stage31.so"
+bash "$HOME/jdsp-hrtf-matrix/run-termux-hrtf-matrix.sh" \
+  "$HOME/libphonon-stage31.so" \
+  /vendor/etc/axionfx/hrtf/sadie_h12.sofa 2>&1 \
+  | tee /sdcard/Download/JamesDSP_HRTF_Compatibility_Matrix.txt
+```
+
+The runner refuses any library whose SHA-256 differs from the known Stage 31
+copy. It records context creation status separately from the full numeric and
+named HRTF error, and releases every created HRTF/context. A readable SOFA path
+is tested directly; an unavailable one is explicitly skipped. Return
+`/sdcard/Download/JamesDSP_HRTF_Compatibility_Matrix.txt` and the device's `sha256sum` for the installed
+`/vendor/lib64/soundfx/libphonon.so` before choosing a code change. No source
+patch or replacement ZIP has been made for the 96 kHz issue.
+
 ## Termux package reassembly
 
 The exact tested candidate ZIP and its checksum are committed under
