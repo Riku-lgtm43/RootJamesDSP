@@ -42,6 +42,7 @@ class MaterialSeekbarPreference : Preference {
 
     // Whether to show the SeekBar value TextView next to the bar
     private var mShowSeekBarValue = false
+    private var mShowTicks = true
 
     // Whether the SeekBarPreference should continuously save the Seekbar value while it is being
     // dragged.
@@ -115,6 +116,7 @@ class MaterialSeekbarPreference : Preference {
         setMax(a.getFloat(R.styleable.MaterialSeekbarPreference_maxValue, 100f))
         setSeekBarIncrement(a.getFloat(R.styleable.MaterialSeekbarPreference_seekBarIncrement, 0f))
         mShowSeekBarValue = a.getBoolean(R.styleable.MaterialSeekbarPreference_showSeekBarValue, false)
+        mShowTicks = a.getBoolean(R.styleable.MaterialSeekbarPreference_showTicks, true)
         mUpdatesContinuously = a.getBoolean(
             R.styleable.MaterialSeekbarPreference_updatesContinuously,
             false
@@ -177,6 +179,7 @@ class MaterialSeekbarPreference : Preference {
         // after calling setMax. That's why it's important to call setKeyProgressIncrement after
         // calling setMax() since setMax() can change the increment value.
         mSeekBar.stepSize = mSeekBarIncrement
+        mSeekBar.setTickVisible(mShowTicks)
 
         mSeekBar.value = validateValue(mSeekBarValue)
         updateLabelValue(mSeekBarValue)
