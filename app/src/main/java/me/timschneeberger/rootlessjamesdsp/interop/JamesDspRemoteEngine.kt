@@ -104,7 +104,7 @@ class JamesDspRemoteEngine(
             effect?.enabled = wasEnabled
             orbitApplied.clear()
             clearCache()
-            super.syncWithPreferences()
+            super.syncWithPreferences(null)
         }
         catch (ex: IllegalStateException) {
             Timber.e("Failed to re-instantiate JamesDSP effect")
