@@ -19,6 +19,7 @@ object Constants {
     const val PREF_OUTPUT = "dsp_output_control"
     const val PREF_REVERB = "dsp_reverb"
     const val PREF_STEREOWIDE = "dsp_stereowide"
+    const val PREF_ORBIT = "dsp_orbit"
     const val PREF_TUBE = "dsp_tube"
 
     // Default string values

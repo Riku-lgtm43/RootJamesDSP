@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.ViewGroup
@@ -80,6 +81,27 @@ class PreferenceGroupFragment : PreferenceFragmentCompat(), KoinComponent {
         requireContext().registerLocalReceiver(receiver, IntentFilter(Constants.ACTION_PRESET_LOADED))
 
         when(args.getInt(BUNDLE_XML_RES)) {
+            R.xml.dsp_orbit_preferences -> {
+                findPreference<Preference>(getString(R.string.key_orbit_reset))
+                    ?.setOnPreferenceClickListener {
+                        MaterialAlertDialogBuilder(requireContext())
+                            .setTitle(R.string.orbit_reset_dialog_title)
+                            .setMessage(R.string.orbit_reset_dialog_message)
+                            .setNegativeButton(android.R.string.cancel, null)
+                            .setPositiveButton(R.string.orbit_reset_confirm) { _, _ ->
+                                arrayOf(
+                                    R.string.key_orbit_width to 100f,
+                                    R.string.key_orbit_strength to 70f,
+                                    R.string.key_orbit_seconds to 25f,
+                                    R.string.key_orbit_bass to 100f
+                                ).forEach { (keyRes, value) ->
+                                    findPreference<MaterialSeekbarPreference>(getString(keyRes))
+                                        ?.setValue(value)
+                                }
+                            }.show()
+                        true
+                    }
+            }
             R.xml.dsp_compander_preferences -> {
                 findPreference<MaterialSeekbarPreference>(getString(R.string.key_compander_granularity))?.valueLabelOverride =
                     fun(it: Float): String {

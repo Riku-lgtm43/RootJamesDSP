@@ -664,4 +664,14 @@ Tap on \'Tutorial\' below for detailed instructions.</string>
     <string name="android_15_screenshare_keyguard_warning">Android 15 introduces a restriction that stops screen sharing when the device is locked. To workaround this issue, the \'PROJECT_MEDIA\' permission must be granted using Shizuku or ADB.
 
 Please press \'Continue\' below to re-do the setup wizard.</string>
+
+    <string name="orbit_enable">Orbit HRTF</string>
+    <string name="orbit_width">Stereo width</string>
+    <string name="orbit_strength">HRTF strength</string>
+    <string name="orbit_seconds">Full rotation</string>
+    <string name="orbit_bass">Bass preservation</string>
+    <string name="orbit_reset">Restore orbit defaults</string>
+    <string name="orbit_reset_dialog_title">Restore orbit settings?</string>
+    <string name="orbit_reset_dialog_message">Restore width 100%, HRTF strength 70%, rotation 25 s and bass preservation 100%? Orbit will keep its current on/off state.</string>
+    <string name="orbit_reset_confirm">Restore</string>
 </resources>

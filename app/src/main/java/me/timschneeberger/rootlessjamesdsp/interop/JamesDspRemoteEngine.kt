@@ -43,6 +43,10 @@ class JamesDspRemoteEngine(
         }
     }
 
+    // One native effect instance belongs to JamesDSP's existing session manager.
+    // Keep the last successfully verified values to avoid redundant writes.
+    private val orbitApplied = hashMapOf<Int, Int>()
+
     var effect: AudioEffectHidden? = createEffect()
 
     override var enabled: Boolean
@@ -94,8 +98,13 @@ class JamesDspRemoteEngine(
 
     private fun rebootEngine() {
         try {
+            val wasEnabled = effect?.enabled ?: false
             effect?.release()
             effect = createEffect()
+            effect?.enabled = wasEnabled
+            orbitApplied.clear()
+            clearCache()
+            super.syncWithPreferences()
         }
         catch (ex: IllegalStateException) {
             Timber.e("Failed to re-instantiate JamesDSP effect")
@@ -120,6 +129,28 @@ class JamesDspRemoteEngine(
         effect?.release()
         effect = null
         super.close()
+    }
+
+    override fun setOrbitParameters(enabled: Boolean, width: Int, strength: Int,
+                                    seconds: Int, bass: Int): Boolean {
+        val values = intArrayOf(width.coerceIn(0, 200), strength.coerceIn(0, 100),
+            seconds.coerceIn(5, 60), bass.coerceIn(0, 100), if (enabled) 1 else 0)
+        val ids = intArrayOf(0x1001, 0x1003, 0x1005, 0x1006, 0x1000)
+        var success = true
+        for (index in ids.indices) {
+            val id = ids[index]
+            val desired = values[index]
+            if (orbitApplied[id] == desired) continue
+            val result = effect.setParameter(id, desired)
+            val actual = if (result == AudioEffect.SUCCESS) effect.getParameterInt(id) else null
+            if (result == AudioEffect.SUCCESS && actual == desired) {
+                orbitApplied[id] = desired
+            } else {
+                success = false
+                Timber.e("Orbit parameter 0x${id.toString(16)} write/readback failed: status=$result readback=$actual")
+            }
+        }
+        return success
     }
 
     override fun setOutputControl(threshold: Float, release: Float, postGain: Float): Boolean {

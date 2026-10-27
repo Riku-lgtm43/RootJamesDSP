@@ -131,4 +131,11 @@
     <string name="key_limiter_threshold" translatable="false">limiter_threshold</string>
     <string name="key_limiter_release" translatable="false">limiter_release</string>
     <string name="key_output_postgain" translatable="false">output_postgain</string>
+
+    <string name="key_orbit_enable" translatable="false">orbit_enable</string>
+    <string name="key_orbit_width" translatable="false">orbit_width</string>
+    <string name="key_orbit_strength" translatable="false">orbit_strength</string>
+    <string name="key_orbit_seconds" translatable="false">orbit_seconds</string>
+    <string name="key_orbit_bass" translatable="false">orbit_bass</string>
+    <string name="key_orbit_reset" translatable="false">orbit_reset</string>
 </resources>

@@ -14,6 +14,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import me.timschneeberger.rootlessjamesdsp.R
+import me.timschneeberger.rootlessjamesdsp.BuildConfig
 import me.timschneeberger.rootlessjamesdsp.databinding.FragmentDspBinding
 import me.timschneeberger.rootlessjamesdsp.utils.Constants
 import me.timschneeberger.rootlessjamesdsp.utils.preferences.Preferences
@@ -121,6 +122,15 @@ class DspFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeListen
                     R.xml.dsp_reverb_preferences
                 ))
             .commit()
+
+        // The Stage 31 orbit ABI is implemented in the root vendor effect only.
+        if (!BuildConfig.ROOTLESS && !BuildConfig.PLUGIN) {
+            binding.cardOrbitContainer.isVisible = true
+            childFragmentManager.beginTransaction()
+                .replace(R.id.card_orbit, PreferenceGroupFragment.newInstance(
+                    Constants.PREF_ORBIT, R.xml.dsp_orbit_preferences))
+                .commit()
+        }
 
         // Load initial preferences
         arrayOf(R.string.key_device_profiles_enable).forEach {

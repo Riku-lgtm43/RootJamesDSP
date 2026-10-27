@@ -113,6 +113,13 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
             val convolverAdvImp = cache.get(R.string.key_convolver_adv_imp, Constants.DEFAULT_CONVOLVER_ADVIMP)
             val convolverMode = cache.get(R.string.key_convolver_mode, "0").toInt()
 
+            cache.select(Constants.PREF_ORBIT)
+            val orbitEnabled = cache.get(R.string.key_orbit_enable, false)
+            val orbitWidth = cache.get(R.string.key_orbit_width, 100f).toInt().coerceIn(0, 200)
+            val orbitStrength = cache.get(R.string.key_orbit_strength, 70f).toInt().coerceIn(0, 100)
+            val orbitSeconds = cache.get(R.string.key_orbit_seconds, 25f).toInt().coerceIn(5, 60)
+            val orbitBass = cache.get(R.string.key_orbit_bass, 100f).toInt().coerceIn(0, 100)
+
             val targets = cache.changedNamespaces.toTypedArray() + (forceUpdateNamespaces ?: arrayOf())
             targets.forEach {
                 Timber.i("Committing new changes in namespace '$it'")
@@ -125,6 +132,7 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
                     Constants.PREF_GEQ -> setGraphicEq(geqEnabled, geqBands)
                     Constants.PREF_REVERB -> setReverb(reverbEnabled, reverbPreset)
                     Constants.PREF_STEREOWIDE -> setStereoEnhancement(swEnabled, swMode)
+                    Constants.PREF_ORBIT -> setOrbitParameters(orbitEnabled, orbitWidth, orbitStrength, orbitSeconds, orbitBass)
                     Constants.PREF_CROSSFEED -> setCrossfeed(crossfeedEnabled, crossfeedMode)
                     Constants.PREF_TUBE -> setVacuumTube(tubeEnabled, tubeDrive)
                     Constants.PREF_DDC -> setVdc(ddcEnabled, ddcFile)
@@ -291,6 +299,11 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
             Timber.w(ex)
             null
         }
+
+    // Default no-op for rootless local DSP; Stage 31's orbit parameters exist only
+    // in the rooted Android AudioEffect implementation.
+    open fun setOrbitParameters(enabled: Boolean, width: Int, strength: Int,
+                                seconds: Int, bass: Int): Boolean = true
 
     // Effect config
     abstract fun setOutputControl(threshold: Float, release: Float, postGain: Float): Boolean
