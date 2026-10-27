@@ -1,36 +1,12 @@
 # LDAC Orbit experimental candidates
 
-## Android 16 SELinux label candidate
-
-The newest, uninstalled candidate adds a packaging correction based on the uploaded POCO
-Android 16 log. `audioserver` was denied read access to the overlaid
-`/vendor/etc/audio_effects.xml` because the module labeled the entire vendor
-tree `vendor_file`. The new package labels `/vendor/etc` and its configuration
-and HRTF files as `vendor_configs_file`, while keeping native sound-effect
-libraries `vendor_file`. It adds no SELinux allow rule and makes no native DSP
-binary changes.
-
-This addresses the observed registration/loading failure hypothesis; it is not
-yet confirmed on-device. The supplied log shows an invalid effect PID and
-sample-rate reads after the denial, but no native DSP SIGSEGV. Android 16
-effect registration must be verified after reboot before playback testing.
-See [the failure analysis](ANDROID16_SELINUX_FAILURE_ANALYSIS.md), the
-[verification report](ANDROID16_SELINUX_CANDIDATE_VERIFICATION.md), and the
-packaging source under `package/android16-selinux-fix/`. Recreate the package
-with [the Termux packager](scripts/package-android16-selinux-candidate-termux.sh).
-
-Download the separate version 37 package:
-[`JamesDSP_Orbit_LDAC_CIPIC_HRTF_Experimental_KernelSU_Android16Label.zip`](artifacts/JamesDSP_Orbit_LDAC_CIPIC_HRTF_Experimental_KernelSU_Android16Label.zip).
-SHA-256: `85c36c93580b618d9ee9209b2dcb04a12452b1260622120d454ad906e6296993`.
-
-## Previous Stage 18 engine-audit candidate (version 36)
+## Stage 18 engine-audit candidate
 
 This is the newest, separate opt-in ARM64 KernelSU package produced by the
-engine audit, before the Android 16 label correction. Its module ID remains
-`jamesdsp_orbit_stage29`. It is not a production-stable release and does not
+engine audit. Its module ID remains `jamesdsp_orbit_stage29`. It is not a
+production-stable release, has not been installed on the device, and does not
 replace or modify the published Stage 31 package or any earlier experimental
-ZIP. The latest uploaded log does not identify which module version was
-installed; it shows the registration failure addressed by the new candidate.
+ZIP. No installation or reboot is performed by the build workflow.
 
 The source changes repair a high-rate ASRC FIFO reallocation bug that made
 output depend on callback segmentation, avoid rebuilding disabled convolution
