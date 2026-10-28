@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <vector>
 
 extern "C" void mockSetFailHrtf(bool fail);
@@ -11,7 +12,9 @@ extern "C" void mockResetHrtfCreateCalls();
 extern "C" int mockHrtfCreateCalls();
 extern "C" int mockLastRate();
 extern "C" IPLHRTFType mockLastHrtfType();
+extern "C" IPLHRTFNormType mockLastHrtfNormType();
 extern "C" const char* mockLastSofaPath();
+extern "C" void mockSetBinauralGain(float gain);
 
 static void require(bool ok, const char* what) {
     if (!ok) { std::fprintf(stderr, "FAIL: %s\n", what); std::exit(1); }
@@ -31,6 +34,8 @@ static std::vector<float> render(int rate, const std::vector<int>& chunks) {
     spatial.setEnabled(true);
     require(spatial.isInitialized(), "mock Steam Audio init");
     require(mockLastRate() == rate, "sample rate passed to HRTF");
+    require(mockLastHrtfNormType() == IPL_HRTFNORMTYPE_RMS,
+            "HRTF loudness is normalized across directions");
     if (rate == 88200 || rate == 96000) {
         require(mockLastHrtfType() == IPL_HRTFTYPE_SOFA, "SOFA selected above embedded default rates");
         require(std::strcmp(mockLastSofaPath(), "/vendor/etc/axionfx/hrtf/cipic_124.sofa") == 0,
@@ -94,6 +99,67 @@ int main() {
         require(maxDiff < 1e-6f, "callback segmentation does not change rendered samples");
         std::printf("PASS rate=%d callbacks=128 and irregular maxSegmentationDiff=%g\n", rate, maxDiff);
     }
+
+    // Model a high-gain HRTF response and verify that Orbit keeps the stereo
+    // block below the float output ceiling without clipping individual samples.
+    mockSetBinauralGain(5.0f);
+    axionfx::SteamSpatial limiter;
+    limiter.configure(48000);
+    limiter.setBlend(100);
+    limiter.setBassPreservation(0);
+    limiter.setEnabled(true);
+    std::vector<float> hotSignal(48000 * 2);
+    constexpr float limiterPi = 3.14159265358979323846f;
+    for (int i = 0; i < 48000; ++i) {
+        const float sample = 0.80f * std::sin(2.0f * limiterPi * 997.0f * i / 48000.0f);
+        hotSignal[2 * i] = sample;
+        hotSignal[2 * i + 1] = sample;
+    }
+    for (int pos = 0; pos < 48000;) {
+        const int count = std::min(1920, 48000 - pos);
+        limiter.process(hotSignal.data() + 2 * pos, count);
+        pos += count;
+    }
+    float limitedPeak = 0.0f;
+    for (float sample : hotSignal) {
+        require(std::isfinite(sample), "high-gain HRTF output remains finite");
+        limitedPeak = std::max(limitedPeak, std::fabs(sample));
+    }
+    std::printf("METRICS syntheticHighGainPeak=%g\n", limitedPeak);
+    require(limitedPeak <= 0.95001f, "linked Orbit limiter preserves float output headroom");
+    require(limitedPeak > 0.80f, "peak control preserves audible signal level");
+    mockSetBinauralGain(1.0f);
+    std::puts("PASS linked peak control synthetic high-gain signal");
+
+    mockSetBinauralGain(std::numeric_limits<float>::quiet_NaN());
+    axionfx::SteamSpatial finiteGuard;
+    finiteGuard.configure(48000);
+    finiteGuard.setBlend(100);
+    finiteGuard.setBassPreservation(0);
+    finiteGuard.setEnabled(true);
+    std::vector<float> invalidHrtfInput(1024, 0.125f);
+    finiteGuard.process(invalidHrtfInput.data(), 512);
+    for (float sample : invalidHrtfInput)
+        require(std::isfinite(sample), "non-finite HRTF output falls back to dry audio");
+    mockSetBinauralGain(1.0f);
+    constexpr float recoveryPi = 3.14159265358979323846f;
+    std::vector<float> recoveryInput(4096 * 2), recoveryOutput;
+    for (int i = 0; i < 4096; ++i) {
+        const float sample = 0.20f * std::sin(2.0f * recoveryPi * 997.0f * i / 48000.0f);
+        recoveryInput[2 * i] = recoveryInput[2 * i + 1] = sample;
+    }
+    recoveryOutput = recoveryInput;
+    finiteGuard.process(recoveryOutput.data(), 4096);
+    float recoveryChange = 0.0f;
+    for (int i = 256; i < 4096; ++i) {
+        require(std::isfinite(recoveryOutput[2 * i]) && std::isfinite(recoveryOutput[2 * i + 1]),
+                "finite HRTF output recovers after a non-finite block");
+        recoveryChange += std::fabs(recoveryOutput[2 * i] - recoveryInput[2 * (i - 128)]) +
+                          std::fabs(recoveryOutput[2 * i + 1] - recoveryInput[2 * (i - 128) + 1]);
+    }
+    require(recoveryChange > 0.1f, "HRTF filter state recovers after a non-finite block");
+    finiteGuard.setEnabled(false);
+    std::puts("PASS non-finite HRTF fallback and recovery");
 
     axionfx::SteamSpatial spatial;
     spatial.configure(48000);

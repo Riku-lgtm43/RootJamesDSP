@@ -6,12 +6,16 @@ static bool gFailHrtf = false;
 static int gHrtfCreateCalls = 0;
 static int gRate = 0;
 static IPLHRTFType gHrtfType = IPL_HRTFTYPE_DEFAULT;
+static IPLHRTFNormType gHrtfNormType = IPL_HRTFNORMTYPE_NONE;
+static float gBinauralGain = 1.0f;
 static char gSofaPath[512] = {};
 extern "C" void mockSetFailHrtf(bool fail) { gFailHrtf = fail; }
 extern "C" void mockResetHrtfCreateCalls() { gHrtfCreateCalls = 0; }
 extern "C" int mockHrtfCreateCalls() { return gHrtfCreateCalls; }
 extern "C" int mockLastRate() { return gRate; }
 extern "C" IPLHRTFType mockLastHrtfType() { return gHrtfType; }
+extern "C" IPLHRTFNormType mockLastHrtfNormType() { return gHrtfNormType; }
+extern "C" void mockSetBinauralGain(float gain) { gBinauralGain = gain; }
 extern "C" const char* mockLastSofaPath() { return gSofaPath; }
 
 struct FakeHandle { int id; };
@@ -21,6 +25,7 @@ IPLerror iplHRTFCreate(IPLContext, IPLAudioSettings* a, IPLHRTFSettings* setting
     ++gHrtfCreateCalls;
     gRate = a->samplingRate;
     gHrtfType = settings->type;
+    gHrtfNormType = settings->normType;
     gSofaPath[0] = '\0';
     if (settings->sofaFileName) {
         std::strncpy(gSofaPath, settings->sofaFileName, sizeof(gSofaPath) - 1);
@@ -51,8 +56,8 @@ IPLAudioEffectState iplBinauralEffectApply(IPLBinauralEffect e, IPLBinauralEffec
     const float bias = p->direction.x * 0.15f + (reinterpret_cast<FakeHandle*>(e)->id % 2 ? 0.03f : -0.03f);
     for (int i = 0; i < in->numSamples; ++i) {
         const float x = in->data[0][i];
-        out->data[0][i] = x * (0.80f + bias);
-        out->data[1][i] = x * (0.20f - bias);
+        out->data[0][i] = x * (0.80f + bias) * gBinauralGain;
+        out->data[1][i] = x * (0.20f - bias) * gBinauralGain;
     }
     return IPL_AUDIOEFFECTSTATE_TAILCOMPLETE;
 }

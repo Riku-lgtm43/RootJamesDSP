@@ -114,3 +114,34 @@ remained byte-identical. The new library keeps the same exports, dependencies,
 and RUNPATH. The existing experimental ZIP and Stage 31 release are unchanged;
 the config-guard package is a separate artifact and still needs device
 confirmation.
+
+## Audio quality and headroom follow-up — 2026-10-28
+
+The v35 Orbit path was tested with Steam Audio 4.8.1's Linux x86-64 library and
+the packaged CIPIC SOFA. With 0.95 peak input, v35 produced peaks above float
+full scale: 1.100 (48 kHz tone), 1.993 (48 kHz broadband), 1.617 (96 kHz tone),
+and 2.590 (96 kHz broadband). This is a concrete clipping risk that could make
+Orbit sound harsh.
+
+The new v36 experimental patch enables `IPL_HRTFNORMTYPE_RMS`, guards
+non-finite HRTF output, and applies a stereo-linked 128-frame gain ceiling of
+0.95 with a 60 ms release. It does not alter the JamesDSP DSP core. Only the
+Orbit spatial processor object was rebuilt; the other 89 v35 objects were
+reused byte-for-byte. The new candidate keeps the v35 module ID, signed APK,
+Steam Audio library, audio effects XML, installer, CIPIC SOFA, and attribution.
+
+The ASan/UBSan mock suite, including a synthetic 5x HRTF gain case, passed, as
+did the JamesDSP effect-connection regression. The added real-HRTF host suite
+passed at 44.1, 48, and 96 kHz for tones and deterministic stereo broadband
+input. All six cases had zero samples at or above 1.0, a peak no higher than
+0.95, and exact output equivalence across regular and irregular callback
+sizes. A 25-second direction sweep showed the HRTF RMS normalization reduced
+the total-output loudness ratio from 1.798x to 1.571x at 48 kHz, and from
+1.444x to 1.409x at 96 kHz.
+
+The Linux library is the Steam Audio 4.8.1 host build, not the exact Android
+ARM64 binary. These measurements validate the algorithm and the limiter in an
+offline host test; they do not replace on-device listening. The v36 ZIP is not
+installed. LDAC listening at 44.1/48/96 kHz, AAC/USB controls, Android 16
+install/reboot, and extended stability tests remain pending. The v35 package
+and published Stage 31 release are unchanged.

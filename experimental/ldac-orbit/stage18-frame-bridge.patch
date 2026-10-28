@@ -17,34 +17,41 @@
 -#define ALOGW(...) do { std::fprintf(stderr, "AxionFxSpatial W: "); std::fprintf(stderr, __VA_ARGS__); std::fprintf(stderr, "\n"); } while (0)
 @@ -28 +21,0 @@
 -#include <atomic>
-@@ -30 +22,0 @@
+@@ -30 +23,4 @@
 -// AXHRTF_DIAG_V1
-@@ -56 +48 @@
++
++#ifndef JAMESDSP_ORBIT_CIPIC_SOFA_PATH
++#define JAMESDSP_ORBIT_CIPIC_SOFA_PATH "/vendor/etc/axionfx/hrtf/cipic_124.sofa"
++#endif
+@@ -56 +52 @@
 -    AXIONFX_DISABLED_LOG("AXHRTF configure sr=%d frameSize=%d", mSampleRate, mFrameSize);
 +    resetFrameBridge();
-@@ -67 +58,0 @@
+@@ -67 +62,0 @@
 -        ALOGE("iplContextCreate failed: %d", err);
-@@ -75 +66,2 @@
+@@ -75 +70,2 @@
 -    static const char* kSofaPath = "/vendor/etc/axionfx/hrtf/sadie_h12.sofa";
 +    static const char* kSadieSofaPath = "/vendor/etc/axionfx/hrtf/sadie_h12.sofa";
-+    static const char* kCipicSofaPath = "/vendor/etc/axionfx/hrtf/cipic_124.sofa";
-@@ -80 +72,3 @@
++    static const char* kCipicSofaPath = JAMESDSP_ORBIT_CIPIC_SOFA_PATH;
+@@ -78,0 +75,2 @@
++    // Keep perceived level more consistent while the HRTF direction rotates.
++    hrtfSettings.normType = IPL_HRTFNORMTYPE_RMS;
+@@ -80 +78,8 @@
 -    if (mHrtfProfile == 1 && access(kSofaPath, R_OK) == 0) {
 +    const bool highRateNeedsSofa = mSampleRate == 88200 || mSampleRate == 96000;
 +    const bool sadieAvailable = mHrtfProfile == 1 && access(kSadieSofaPath, R_OK) == 0;
 +    if (sadieAvailable) {
-@@ -82,2 +76,6 @@
--        hrtfSettings.sofaFileName = kSofaPath;
--        AXIONFX_DISABLED_LOG("Loading HRTF profile SADIE H12 from %s", kSofaPath);
++        hrtfSettings.type = IPL_HRTFTYPE_SOFA;
 +        hrtfSettings.sofaFileName = kSadieSofaPath;
 +    } else if (highRateNeedsSofa) {
 +        // Steam Audio's embedded default HRTF has no 88.2/96 kHz data.
 +        // The bundled CIPIC SOFA is resampled by Steam Audio for these rates.
-+        hrtfSettings.type = IPL_HRTFTYPE_SOFA;
+@@ -82,2 +87 @@
+-        hrtfSettings.sofaFileName = kSofaPath;
+-        AXIONFX_DISABLED_LOG("Loading HRTF profile SADIE H12 from %s", kSofaPath);
 +        hrtfSettings.sofaFileName = kCipicSofaPath;
-@@ -86 +83,0 @@
+@@ -86 +89,0 @@
 -        AXIONFX_DISABLED_LOG("Using default embedded HRTF (profile %d)", mHrtfProfile);
-@@ -91,4 +88,12 @@
+@@ -91,4 +94,12 @@
 -        ALOGW("SOFA HRTF failed (%d), falling back to default", err);
 -        hrtfSettings.type = IPL_HRTFTYPE_DEFAULT;
 -        hrtfSettings.sofaFileName = nullptr;
@@ -61,30 +68,30 @@
 +            hrtfSettings.sofaFileName = nullptr;
 +            err = iplHRTFCreate(mContext, &audioSettings, &hrtfSettings, &mHrtf);
 +        }
-@@ -97 +101,0 @@
+@@ -97 +107,0 @@
 -        ALOGE("iplHRTFCreate failed: %d", err);
-@@ -105 +109 @@
+@@ -105 +115 @@
 -    if (err != IPL_STATUS_SUCCESS) { ALOGE("left input allocation failed: %d", err); teardown(); return; }
 +    if (err != IPL_STATUS_SUCCESS) { teardown(); return; }
-@@ -108 +112 @@
+@@ -108 +118 @@
 -    if (err != IPL_STATUS_SUCCESS) { ALOGE("right input allocation failed: %d", err); teardown(); return; }
 +    if (err != IPL_STATUS_SUCCESS) { teardown(); return; }
-@@ -111 +115 @@
+@@ -111 +121 @@
 -    if (err != IPL_STATUS_SUCCESS) { ALOGE("left output allocation failed: %d", err); teardown(); return; }
 +    if (err != IPL_STATUS_SUCCESS) { teardown(); return; }
-@@ -114 +118 @@
+@@ -114 +124 @@
 -    if (err != IPL_STATUS_SUCCESS) { ALOGE("right output allocation failed: %d", err); teardown(); return; }
 +    if (err != IPL_STATUS_SUCCESS) { teardown(); return; }
-@@ -120 +124 @@
+@@ -120 +130 @@
 -    if (err != IPL_STATUS_SUCCESS) { ALOGE("left effect creation failed: %d", err); teardown(); return; }
 +    if (err != IPL_STATUS_SUCCESS) { teardown(); return; }
-@@ -122 +126 @@
+@@ -122 +132 @@
 -    if (err != IPL_STATUS_SUCCESS) { ALOGE("right effect creation failed: %d", err); teardown(); return; }
 +    if (err != IPL_STATUS_SUCCESS) { teardown(); return; }
-@@ -125,2 +128,0 @@
+@@ -125,2 +134,0 @@
 -    AXIONFX_DISABLED_LOG("AXHRTF initialized sr=%d frameSize=%d", mSampleRate, mFrameSize);
 -    AXIONFX_DISABLED_LOG("Steam Audio stereo orbit initialized: sr=%d frameSize=%d", mSampleRate, mFrameSize);
-@@ -140,0 +143,12 @@
+@@ -140,0 +149,13 @@
 +void SteamSpatial::resetFrameBridge() {
 +    mPendingInput.fill(0.0f);
 +    mOutputBlock.fill(0.0f);
@@ -95,9 +102,10 @@
 +    mFadeOutRemaining = 0;
 +    mFadeOutInitialGain = 0.0f;
 +    mFadeInStarted = false;
++    mLimiterGain = 1.0f;
 +}
 +
-@@ -142,8 +156,52 @@
+@@ -142,8 +163,52 @@
 -    static std::atomic<uint64_t> calls{0};
 -    const uint64_t call = calls.fetch_add(1, std::memory_order_relaxed) + 1;
 -    if (call == 1 || call % 1000 == 0)
@@ -158,9 +166,9 @@
 +
 +void SteamSpatial::processBlock(float* buffer, int frames) {
 +    if (!buffer || !mEnabled || !mInitialized || frames != mFrameSize || mFrameSize <= 0) return;
-@@ -155 +212,0 @@
+@@ -155 +219,0 @@
 -    const float dry = 1.0f - wet;
-@@ -176,7 +233 @@
+@@ -176,7 +240 @@
 -        // Never feed zero padding into Steam Audio's convolution history.
 -        // For unusual non-multiple callback sizes, leave the short tail dry.
 -        if (block != mFrameSize) {
@@ -169,10 +177,54 @@
 -            continue;
 -        }
 +        if (block != mFrameSize) return;
-@@ -219,2 +269,0 @@
+@@ -195,0 +254 @@
++        float blockPeak = 0.0f;
+@@ -200,0 +260,10 @@
++            if (!std::isfinite(originalL) || !std::isfinite(originalR) ||
++                !std::isfinite(binauralL) || !std::isfinite(binauralR)) {
++                mDryLowL = mDryLowR = mWetLowL = mWetLowR = 0.0f;
++                const float safeL = std::isfinite(originalL) ? originalL : 0.0f;
++                const float safeR = std::isfinite(originalR) ? originalR : 0.0f;
++                buffer[(offset + i) * 2] = safeL;
++                buffer[(offset + i) * 2 + 1] = safeR;
++                blockPeak = std::max(blockPeak, std::max(std::fabs(safeL), std::fabs(safeR)));
++                continue;
++            }
+@@ -213,2 +282,28 @@
+-            buffer[(offset + i) * 2] = originalL + wet * protectedDeltaL;
+-            buffer[(offset + i) * 2 + 1] = originalR + wet * protectedDeltaR;
++            float outputL = originalL + wet * protectedDeltaL;
++            float outputR = originalR + wet * protectedDeltaR;
++            // A failed HRTF calculation must not inject NaNs into the system mix.
++            if (!std::isfinite(outputL) || !std::isfinite(outputR)) {
++                mDryLowL = mDryLowR = mWetLowL = mWetLowR = 0.0f;
++                outputL = std::isfinite(originalL) ? originalL : 0.0f;
++                outputR = std::isfinite(originalR) ? originalR : 0.0f;
++            }
++            buffer[(offset + i) * 2] = outputL;
++            buffer[(offset + i) * 2 + 1] = outputR;
++            blockPeak = std::max(blockPeak, std::max(std::fabs(outputL), std::fabs(outputR)));
++        }
++        // HRTF convolution can exceed float full scale when stereo sources add.
++        // Apply one linked gain to the whole 128-frame block, with a slow release
++        // to avoid per-sample clipping and rapid gain modulation.
++        constexpr float kPeakCeiling = 0.95f;
++        const float targetGain = blockPeak > kPeakCeiling ? kPeakCeiling / blockPeak : 1.0f;
++        if (targetGain < mLimiterGain) {
++            mLimiterGain = targetGain;
++        } else {
++            constexpr float kReleaseSeconds = 0.060f;
++            const float release = 1.0f - std::exp(-static_cast<float>(block) /
++                    (static_cast<float>(std::max(1, mSampleRate)) * kReleaseSeconds));
++            mLimiterGain += (targetGain - mLimiterGain) * release;
++        }
++        for (int i = 0; i < block; ++i) {
++            buffer[(offset + i) * 2] *= mLimiterGain;
++            buffer[(offset + i) * 2 + 1] *= mLimiterGain;
+@@ -219,2 +313,0 @@
 -    if (measure)
 -        AXIONFX_DISABLED_LOG("AXHRTF applied calls=%llu phaseFrames=%llu firstSampleDeltaL=%g firstSampleDeltaR=%g", (unsigned long long)call, (unsigned long long)mOrbitFrameCount, (double)(buffer[0] - beforeL), (double)(buffer[1] - beforeR));
-@@ -235,0 +285,17 @@
+@@ -235,0 +329,17 @@
 +    if (enabled && !mEnabled && mInitialized) {
 +        resetFrameBridge();
 +        mEnabled = true;
@@ -190,11 +242,11 @@
 +        mInitFailed = false;
 +        return;
 +    }
-@@ -237 +302,0 @@
+@@ -237 +346,0 @@
 -    AXIONFX_DISABLED_LOG("AXHRTF setEnabled requested=%d initialized=%d initFailed=%d", enabled, mInitialized, mInitFailed);
-@@ -255,0 +321 @@
+@@ -255,0 +365 @@
 +    resetFrameBridge();
-@@ -269,0 +336 @@
+@@ -269,0 +380 @@
 +    resetFrameBridge();
 --- a/source/orbit/SteamSpatial.h
 +++ b/source/orbit/SteamSpatial.h
@@ -205,7 +257,7 @@
 @@ -26,0 +29,2 @@
 +    void processBlock(float* buffer, int frames) __attribute__((visibility("hidden")));
 +    void resetFrameBridge() __attribute__((visibility("hidden")));
-@@ -55,0 +60,11 @@
+@@ -55,0 +60,13 @@
 +    // Steam Audio requires fixed 128-frame calls. Buffer across Android callbacks
 +    // and emit one block later so no callback remainder is repeatedly left dry.
 +    std::array<float, kFrameSize * 2> mPendingInput{};
@@ -217,6 +269,8 @@
 +    int mFadeOutRemaining = 0;
 +    float mFadeOutInitialGain = 0.0f;
 +    bool mFadeInStarted = false;
++    // Stereo-linked block peak control for headroom after HRTF summation.
++    float mLimiterGain = 1.0f;
 --- a/source/jamesdsp.c
 +++ b/source/jamesdsp.c
 @@ -56 +56,5 @@

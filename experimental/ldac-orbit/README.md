@@ -213,3 +213,20 @@ bash "$HOME/repack-stage31-termux.sh" \
 The script downloads the candidate and original Stage 31 ZIP when local inputs
 are omitted. It also accepts both files as the second and third arguments for
 offline reassembly.
+
+## Audio quality follow-up
+
+The separate v36 audio-quality candidate is based on the working v35 package;
+the v35 ZIP and Stage 31 release are unchanged. Real Steam Audio 4.8.1 host
+measurements showed that HRTF summation could exceed float full scale, most
+strongly at 96 kHz. The patch enables Steam Audio RMS HRTF normalization and
+adds a linked 0.95 peak ceiling with a 60 ms release. It reuses the v35 native
+DSP objects and changes only `orbit_SteamSpatial.cpp.o`.
+
+The new real-HRTF regression checks 44.1, 48, and 96 kHz with tone and broadband
+stereo inputs. All stayed at or below 0.95 with no full-scale samples, and
+regular and irregular callback sizes produced identical output. The host
+library is Steam Audio 4.8.1 Linux x86-64, not the exact Android ARM64 library;
+device listening tests for this candidate are still required. See
+[`TEST_RESULTS.md`](TEST_RESULTS.md) and
+[`AudioQuality_Verification_Report.md`](artifacts/AudioQuality_Verification_Report.md).
