@@ -1,0 +1,5 @@
+--- a/source/orbit/SteamSpatial.cpp
++++ b/source/orbit/SteamSpatial.cpp
+@@ -74 +74 @@
+-    hrtfSettings.volume = 1.0f;
++    hrtfSettings.volume = mSampleRate == 192000 ? 0.25f : 1.0f;

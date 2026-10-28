@@ -230,3 +230,25 @@ library is Steam Audio 4.8.1 Linux x86-64, not the exact Android ARM64 library;
 device listening tests for this candidate are still required. See
 [`TEST_RESULTS.md`](TEST_RESULTS.md) and
 [`AudioQuality_Verification_Report.md`](artifacts/AudioQuality_Verification_Report.md).
+
+## 192 kHz HRTF level-only v40
+
+The separate v40 KernelSU candidate is based on v38 and changes the Orbit HRTF
+volume to `0.25` only at exactly 192 kHz. The Stage 18 source patch now selects
+CIPIC for rates outside Steam Audio's embedded 24/44.1/48 kHz data, including
+192 kHz; `high-rate-hrtf-level.patch` contains the level-only change.
+
+This v40 package does not contain Enhanced mode session-discovery or active
+playback-config changes, and it excludes the v39 PCM pass-through fallback.
+The signed APK, certificate, JamesDSP DSP core, audio-effects configuration,
+Steam Audio library, libc++ library, CIPIC data, license notice, and Android 16
+config-label installer are preserved from v38. Module ID remains
+`jamesdsp_orbit_stage29`.
+
+[Download the v40 HRTF level-only KernelSU ZIP](artifacts/JamesDSP_Orbit_USB_HiFi_192k_HRTF_LevelOnly_NoEnhanced_KernelSU_v40.zip)
+
+SHA-256: `f3d401aea814c27500f88d70235bf7e22d085ffe0abf1063fc3198347d2ee46e`
+
+The package and signed APK were checked. The v40 candidate itself still needs
+low-volume USB 192 kHz listening confirmation; no device installation was done
+for this packaging step.

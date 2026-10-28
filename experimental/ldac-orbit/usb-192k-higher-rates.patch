@@ -1,0 +1,13 @@
+--- a/source/orbit/SteamSpatial.cpp
++++ b/source/orbit/SteamSpatial.cpp
+@@ -78 +78,4 @@
+-    const bool highRateNeedsSofa = mSampleRate == 88200 || mSampleRate == 96000;
++    const bool embeddedHrtfSupportsRate = mSampleRate == 24000 ||
++                                          mSampleRate == 44100 ||
++                                          mSampleRate == 48000;
++    const bool highRateNeedsSofa = !embeddedHrtfSupportsRate;
+@@ -84,2 +87,2 @@
+-        // Steam Audio's embedded default HRTF has no 88.2/96 kHz data.
+-        // The bundled CIPIC SOFA is resampled by Steam Audio for these rates.
++        // Steam Audio's embedded default contains only 24/44.1/48 kHz data.
++        // Steam Audio resamples bundled CIPIC SOFA for other stream rates.
