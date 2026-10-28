@@ -271,3 +271,34 @@ library is Steam Audio 4.8.1 Linux x86-64, not the exact Android ARM64 library;
 device listening tests for this candidate are still required. See
 [`TEST_RESULTS.md`](TEST_RESULTS.md) and
 [`AudioQuality_Verification_Report.md`](artifacts/AudioQuality_Verification_Report.md).
+
+## 192 kHz brightness follow-up
+
+The user described Orbit as harsh/too bright at 192 kHz. A real-HRTF host tone
+sweep found the high-rate CIPIC path up to 10–14 dB hotter than the embedded
+48 kHz path at 8–18 kHz. The separate
+[`high-rate-hrtf-level.patch`](high-rate-hrtf-level.patch) applies 0.25 HRTF
+volume at exactly 192 kHz only. The new response regression compares both input
+channels and both output channels at 8, 12, 16, and 18 kHz against 48 kHz; the
+corrected 192 kHz response is within 1.5 dB. The 44.1/48/96/176.4 kHz paths are
+unchanged. Run it with:
+
+```sh
+experimental/ldac-orbit/scripts/run-high-rate-response-test.sh \
+  /path/to/patched/Stage18/source /path/to/SteamAudio-SDK \
+  /path/to/cipic_124.sofa
+```
+
+This is a Linux Steam Audio 4.8.1 signal test, not Android device listening.
+The same candidate adds a safe PCM pass-through in the native effect wrapper:
+if the stereo DSP core rejects a matching-rate PCM layout, the effect returns
+the input unchanged instead of rejecting the stream. Mono-float and 5.1 PCM16
+pass-through are covered by the host regression. This protects unsupported
+layouts from silence but bypasses DSP for those layouts. TikTok/Facebook
+playback still needs on-device confirmation because their active formats and
+effect chains were not in the supplied Auxio capture.
+
+See [`USB_HiFi_192k_EnhancedMode_v39_Verification_Report.md`](artifacts/USB_HiFi_192k_EnhancedMode_v39_Verification_Report.md)
+for the full report and v39 candidate checks. The
+[v39 experimental KernelSU ZIP](https://raw.githubusercontent.com/Riku-lgtm43/RootJamesDSP/fix/usb-hifi-192k-effect-routing/experimental/ldac-orbit/artifacts/JamesDSP_Orbit_USB_HiFi_192k_EnhancedMode_KernelSU_v39.zip)
+has SHA-256 `db3407ef75a502d59477f8da30ef4c756d6ae1abaf345fbd57aabf93413675d7`.

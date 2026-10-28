@@ -191,3 +191,51 @@ Auxio's PCM/channel configuration, so the denial's connection to silence is
 not yet proven. Device reboot, `ls -Z`, effect-registration, and Auxio audio
 tests remain required. See
 `artifacts/Android16_Auxio_ConfigLabel_Verification.md`.
+
+## 192 kHz Orbit brightness correction — 2026-10-28
+
+The user described 192 kHz Orbit as harsh/too bright. An offline frequency
+sweep with the v37 source, Steam Audio 4.8.1 Linux library, CIPIC SOFA, width
+100, strength 70, and bass preservation 100 showed the CIPIC HRTF path up to
+about 10–14 dB hotter than the 48 kHz path across several 8–18 kHz ear/channel
+measurements. The 48 kHz path uses the embedded HRTF; high rates use CIPIC.
+This was a concrete rate-dependent level mismatch, not a limiter or clipping
+failure.
+
+The new source patch sets Steam Audio's HRTF volume to 0.25 at exactly
+192 kHz and leaves it at 1.0 at all other rates. A separate 176.4 kHz probe
+showed that the CIPIC response contour differs from the embedded profile in a
+way a single scalar gain cannot correct, so the user's 192 kHz correction does
+not change 176.4 kHz. At the tested 8, 12, 16, and 18 kHz tones, each
+input/output channel response at 192 kHz now matches the 48 kHz reference
+within 1.5 dB. The previous 192 kHz response differed by as much as 11.53 dB
+in the regression sweep.
+
+The host callback/configuration suite passed at 8 through 192 kHz, including
+176.4 kHz, invalid HRTF recovery, enable/disable transitions, JamesDSP
+connection, and callback segmentation. The real-HRTF suite passed at 44.1,
+48, 96, and 192 kHz with finite output, no clipping, 0.95 peak ceiling, and
+callback segmentation equivalence. At 192 kHz, the 997 Hz tone RMS changed from
+0.653/0.591 to 0.540/0.399 (L/R); deterministic broadband RMS changed from
+0.181/0.277 to 0.169/0.209. Host measurements use Steam Audio 4.8.1 Linux, not
+the Android ARM64 library, and are not device listening validation.
+
+The native effect wrapper now turns a rejected but safely copyable PCM
+configuration into byte-exact pass-through, while leaving the JamesDSP DSP
+core untouched. This covers stereo, mono, and multichannel layouts with
+matching input/output formats and rates; unsupported layouts have no JamesDSP
+or Orbit effects. The host integration test verifies stereo-rejection,
+mono-float, and 5.1 PCM16 bypass. The Auxio log does not contain TikTok or
+Facebook session/config data, so those apps still need device verification.
+
+The reproducible source patch was checked against the uploaded Stage 18 source:
+both `stage18-frame-bridge.patch` and the 192 kHz volume patch apply cleanly,
+and the generated Orbit source matches the tested source. The ARM64 relink
+reproduced the v38 library hash before modifications; the final rebuild changes
+only `jamesdsp.c.o` and `orbit_SteamSpatial.cpp.o`, while the other 88 of 90
+objects remain byte-identical. Dynamic exports, dependencies, and RUNPATH are
+unchanged. The signed APK, certificate, Steam Audio library, Stage 31 release,
+module ID, and DSP core objects are unchanged. See
+`artifacts/USB_HiFi_192k_EnhancedMode_v39_Verification_Report.md` for the full
+verification and pending device checks. The v39 experimental ZIP SHA-256 is
+`db3407ef75a502d59477f8da30ef4c756d6ae1abaf345fbd57aabf93413675d7`.

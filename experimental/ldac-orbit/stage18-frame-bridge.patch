@@ -32,29 +32,30 @@
 -    static const char* kSofaPath = "/vendor/etc/axionfx/hrtf/sadie_h12.sofa";
 +    static const char* kSadieSofaPath = "/vendor/etc/axionfx/hrtf/sadie_h12.sofa";
 +    static const char* kCipicSofaPath = JAMESDSP_ORBIT_CIPIC_SOFA_PATH;
-@@ -78,0 +75,2 @@
+@@ -79,2 +75,9 @@
+-
+-    if (mHrtfProfile == 1 && access(kSofaPath, R_OK) == 0) {
 +    // Keep perceived level more consistent while the HRTF direction rotates.
 +    hrtfSettings.normType = IPL_HRTFNORMTYPE_RMS;
-@@ -80 +78,8 @@
--    if (mHrtfProfile == 1 && access(kSofaPath, R_OK) == 0) {
++
 +    const bool embeddedHrtfSupportsRate = mSampleRate == 24000 ||
 +                                          mSampleRate == 44100 ||
 +                                          mSampleRate == 48000;
 +    const bool highRateNeedsSofa = !embeddedHrtfSupportsRate;
 +    const bool sadieAvailable = mHrtfProfile == 1 && access(kSadieSofaPath, R_OK) == 0;
 +    if (sadieAvailable) {
-+        hrtfSettings.type = IPL_HRTFTYPE_SOFA;
+@@ -82,2 +85,6 @@
+-        hrtfSettings.sofaFileName = kSofaPath;
+-        AXIONFX_DISABLED_LOG("Loading HRTF profile SADIE H12 from %s", kSofaPath);
 +        hrtfSettings.sofaFileName = kSadieSofaPath;
 +    } else if (highRateNeedsSofa) {
 +        // Steam Audio's embedded default contains only 24/44.1/48 kHz data.
-+        // Use CIPIC for other stream rates; Steam Audio resamples the SOFA.
-@@ -82,2 +87 @@
--        hrtfSettings.sofaFileName = kSofaPath;
--        AXIONFX_DISABLED_LOG("Loading HRTF profile SADIE H12 from %s", kSofaPath);
++        // Steam Audio resamples bundled CIPIC SOFA for other stream rates.
++        hrtfSettings.type = IPL_HRTFTYPE_SOFA;
 +        hrtfSettings.sofaFileName = kCipicSofaPath;
-@@ -86 +89,0 @@
+@@ -86 +92,0 @@
 -        AXIONFX_DISABLED_LOG("Using default embedded HRTF (profile %d)", mHrtfProfile);
-@@ -91,4 +94,12 @@
+@@ -91,4 +97,12 @@
 -        ALOGW("SOFA HRTF failed (%d), falling back to default", err);
 -        hrtfSettings.type = IPL_HRTFTYPE_DEFAULT;
 -        hrtfSettings.sofaFileName = nullptr;
@@ -71,30 +72,30 @@
 +            hrtfSettings.sofaFileName = nullptr;
 +            err = iplHRTFCreate(mContext, &audioSettings, &hrtfSettings, &mHrtf);
 +        }
-@@ -97 +107,0 @@
+@@ -97 +110,0 @@
 -        ALOGE("iplHRTFCreate failed: %d", err);
-@@ -105 +115 @@
+@@ -105 +118 @@
 -    if (err != IPL_STATUS_SUCCESS) { ALOGE("left input allocation failed: %d", err); teardown(); return; }
 +    if (err != IPL_STATUS_SUCCESS) { teardown(); return; }
-@@ -108 +118 @@
+@@ -108 +121 @@
 -    if (err != IPL_STATUS_SUCCESS) { ALOGE("right input allocation failed: %d", err); teardown(); return; }
 +    if (err != IPL_STATUS_SUCCESS) { teardown(); return; }
-@@ -111 +121 @@
+@@ -111 +124 @@
 -    if (err != IPL_STATUS_SUCCESS) { ALOGE("left output allocation failed: %d", err); teardown(); return; }
 +    if (err != IPL_STATUS_SUCCESS) { teardown(); return; }
-@@ -114 +124 @@
+@@ -114 +127 @@
 -    if (err != IPL_STATUS_SUCCESS) { ALOGE("right output allocation failed: %d", err); teardown(); return; }
 +    if (err != IPL_STATUS_SUCCESS) { teardown(); return; }
-@@ -120 +130 @@
+@@ -120 +133 @@
 -    if (err != IPL_STATUS_SUCCESS) { ALOGE("left effect creation failed: %d", err); teardown(); return; }
 +    if (err != IPL_STATUS_SUCCESS) { teardown(); return; }
-@@ -122 +132 @@
+@@ -122 +135 @@
 -    if (err != IPL_STATUS_SUCCESS) { ALOGE("right effect creation failed: %d", err); teardown(); return; }
 +    if (err != IPL_STATUS_SUCCESS) { teardown(); return; }
-@@ -125,2 +134,0 @@
+@@ -125,2 +137,0 @@
 -    AXIONFX_DISABLED_LOG("AXHRTF initialized sr=%d frameSize=%d", mSampleRate, mFrameSize);
 -    AXIONFX_DISABLED_LOG("Steam Audio stereo orbit initialized: sr=%d frameSize=%d", mSampleRate, mFrameSize);
-@@ -140,0 +149,13 @@
+@@ -140,0 +152,13 @@
 +void SteamSpatial::resetFrameBridge() {
 +    mPendingInput.fill(0.0f);
 +    mOutputBlock.fill(0.0f);
@@ -108,7 +109,7 @@
 +    mLimiterGain = 1.0f;
 +}
 +
-@@ -142,8 +163,52 @@
+@@ -142,8 +166,52 @@
 -    static std::atomic<uint64_t> calls{0};
 -    const uint64_t call = calls.fetch_add(1, std::memory_order_relaxed) + 1;
 -    if (call == 1 || call % 1000 == 0)
@@ -169,9 +170,9 @@
 +
 +void SteamSpatial::processBlock(float* buffer, int frames) {
 +    if (!buffer || !mEnabled || !mInitialized || frames != mFrameSize || mFrameSize <= 0) return;
-@@ -155 +219,0 @@
+@@ -155 +222,0 @@
 -    const float dry = 1.0f - wet;
-@@ -176,7 +240 @@
+@@ -176,7 +243 @@
 -        // Never feed zero padding into Steam Audio's convolution history.
 -        // For unusual non-multiple callback sizes, leave the short tail dry.
 -        if (block != mFrameSize) {
@@ -180,9 +181,9 @@
 -            continue;
 -        }
 +        if (block != mFrameSize) return;
-@@ -195,0 +254 @@
+@@ -195,0 +257 @@
 +        float blockPeak = 0.0f;
-@@ -200,0 +260,10 @@
+@@ -200,0 +263,10 @@
 +            if (!std::isfinite(originalL) || !std::isfinite(originalR) ||
 +                !std::isfinite(binauralL) || !std::isfinite(binauralR)) {
 +                mDryLowL = mDryLowR = mWetLowL = mWetLowR = 0.0f;
@@ -193,7 +194,7 @@
 +                blockPeak = std::max(blockPeak, std::max(std::fabs(safeL), std::fabs(safeR)));
 +                continue;
 +            }
-@@ -213,2 +282,28 @@
+@@ -213,2 +285,28 @@
 -            buffer[(offset + i) * 2] = originalL + wet * protectedDeltaL;
 -            buffer[(offset + i) * 2 + 1] = originalR + wet * protectedDeltaR;
 +            float outputL = originalL + wet * protectedDeltaL;
@@ -224,10 +225,10 @@
 +        for (int i = 0; i < block; ++i) {
 +            buffer[(offset + i) * 2] *= mLimiterGain;
 +            buffer[(offset + i) * 2 + 1] *= mLimiterGain;
-@@ -219,2 +313,0 @@
+@@ -219,2 +316,0 @@
 -    if (measure)
 -        AXIONFX_DISABLED_LOG("AXHRTF applied calls=%llu phaseFrames=%llu firstSampleDeltaL=%g firstSampleDeltaR=%g", (unsigned long long)call, (unsigned long long)mOrbitFrameCount, (double)(buffer[0] - beforeL), (double)(buffer[1] - beforeR));
-@@ -235,0 +329,17 @@
+@@ -235,0 +332,17 @@
 +    if (enabled && !mEnabled && mInitialized) {
 +        resetFrameBridge();
 +        mEnabled = true;
@@ -245,11 +246,11 @@
 +        mInitFailed = false;
 +        return;
 +    }
-@@ -237 +346,0 @@
+@@ -237 +349,0 @@
 -    AXIONFX_DISABLED_LOG("AXHRTF setEnabled requested=%d initialized=%d initFailed=%d", enabled, mInitialized, mInitFailed);
-@@ -255,0 +365 @@
+@@ -255,0 +368 @@
 +    resetFrameBridge();
-@@ -269,0 +380 @@
+@@ -269,0 +383 @@
 +    resetFrameBridge();
 --- a/source/orbit/SteamSpatial.h
 +++ b/source/orbit/SteamSpatial.h
@@ -276,13 +277,100 @@
 +    float mLimiterGain = 1.0f;
 --- a/source/jamesdsp.c
 +++ b/source/jamesdsp.c
-@@ -56 +56,5 @@
+@@ -38 +38,52 @@
+-};
++    uint32_t passthroughBytesPerFrame;
++    int passthroughUnsupportedConfig;
++};
++
++static uint32_t channelCountFromMask(uint32_t mask)
++{
++    const uint32_t representation = mask & 0xC0000000u;
++    if (representation == 0x40000000u)
++        return 0;
++
++    mask &= 0x3FFFFFFFu;
++    return (uint32_t)__builtin_popcount(mask);
++}
++
++static uint32_t bytesPerSampleForPcm(uint8_t format)
++{
++    switch (format)
++    {
++    case AUDIO_FORMAT_PCM_8_BIT: return 1;
++    case AUDIO_FORMAT_PCM_16_BIT: return 2;
++    case AUDIO_FORMAT_PCM_24_BIT_PACKED: return 3;
++    case AUDIO_FORMAT_PCM_FLOAT:
++    case AUDIO_FORMAT_PCM_32_BIT:
++    case AUDIO_FORMAT_PCM_8_24_BIT: return 4;
++    default: return 0;
++    }
++}
++
++static uint32_t safePassthroughBytesPerFrame(const effect_config_t *config)
++{
++    const uint16_t required = EFFECT_CONFIG_SMP_RATE |
++                             EFFECT_CONFIG_CHANNELS |
++                             EFFECT_CONFIG_FORMAT;
++    if (!config ||
++        (config->inputCfg.mask & required) != required ||
++        (config->outputCfg.mask & required) != required ||
++        config->inputCfg.samplingRate == 0 ||
++        config->inputCfg.samplingRate != config->outputCfg.samplingRate ||
++        config->inputCfg.channels == 0 ||
++        config->inputCfg.channels != config->outputCfg.channels ||
++        config->inputCfg.format != config->outputCfg.format)
++        return 0;
++
++    const uint32_t channels = channelCountFromMask(config->inputCfg.channels);
++    const uint32_t bytesPerSample = bytesPerSampleForPcm(config->inputCfg.format);
++    if (channels == 0 || bytesPerSample == 0 ||
++        channels > UINT32_MAX / bytesPerSample)
++        return 0;
++
++    return channels * bytesPerSample;
++}
++
+@@ -42,0 +94,9 @@
++	if (e->passthroughUnsupportedConfig) {
++		if (!in->raw || !out->raw || !e->passthroughBytesPerFrame ||
++		    in->frameCount != out->frameCount ||
++		    in->frameCount > SIZE_MAX / e->passthroughBytesPerFrame)
++			return -EINVAL;
++		memmove(out->raw, in->raw,
++		        in->frameCount * e->passthroughBytesPerFrame);
++		return e->effect.mEnable ? 0 : -ENODATA;
++	}
+@@ -54 +114 @@
+-	if (e->orbit_context && cmdCode == EFFECT_CMD_SET_CONFIG && pCmdData && cmdSize >= sizeof(effect_config_t)) {
++	if (cmdCode == EFFECT_CMD_SET_CONFIG && pCmdData && cmdSize >= sizeof(effect_config_t)) {
+@@ -56 +116,25 @@
 -        jdsp_legacy_orbit_configure(e->orbit_context, (const effect_config_t *)pCmdData, result == 0);
 +        int32_t configStatus = -EINVAL;
 +        if (result == 0 && replySize && *replySize >= sizeof(configStatus) && pReplyData)
 +            memcpy(&configStatus, pReplyData, sizeof(configStatus));
-+        jdsp_legacy_orbit_configure(e->orbit_context, (const effect_config_t *)pCmdData,
-+                                    result == 0 && configStatus == 0);
++        if (result != 0 || configStatus != 0) {
++            const uint32_t passthroughBytes = safePassthroughBytesPerFrame(
++                (const effect_config_t *)pCmdData);
++            if (passthroughBytes && replySize && pReplyData &&
++                *replySize >= sizeof(configStatus)) {
++                e->passthroughBytesPerFrame = passthroughBytes;
++                e->passthroughUnsupportedConfig = 1;
++                if (e->orbit_context)
++                    jdsp_legacy_orbit_configure(e->orbit_context,
++                        (const effect_config_t *)pCmdData, 0);
++                configStatus = 0;
++                memcpy(pReplyData, &configStatus, sizeof(configStatus));
++                *replySize = sizeof(configStatus);
++                return 0;
++            }
++        }
++        e->passthroughBytesPerFrame = 0;
++        e->passthroughUnsupportedConfig = 0;
++        if (e->orbit_context)
++            jdsp_legacy_orbit_configure(e->orbit_context,
++                                        (const effect_config_t *)pCmdData,
++                                        result == 0 && configStatus == 0);
 --- a/source/jamesdsp_aidl.h
 +++ b/source/jamesdsp_aidl.h
 @@ -25,0 +26 @@

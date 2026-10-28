@@ -48,6 +48,28 @@ int32_t process(effect_handle_t effect, const std::vector<float>& input,
     return (*effect)->process(effect, &in, &out);
 }
 
+int32_t processMono(effect_handle_t effect, const std::vector<float>& input,
+                    std::vector<float>& output) {
+    audio_buffer_t in{};
+    audio_buffer_t out{};
+    in.frameCount = input.size();
+    in.raw = const_cast<float*>(input.data());
+    out.frameCount = output.size();
+    out.raw = output.data();
+    return (*effect)->process(effect, &in, &out);
+}
+
+int32_t processRaw(effect_handle_t effect, const std::vector<uint8_t>& input,
+                   std::vector<uint8_t>& output, size_t frames) {
+    audio_buffer_t in{};
+    audio_buffer_t out{};
+    in.frameCount = frames;
+    in.raw = const_cast<uint8_t*>(input.data());
+    out.frameCount = frames;
+    out.raw = output.data();
+    return (*effect)->process(effect, &in, &out);
+}
+
 effect_config_t validConfig() {
     effect_config_t config{};
     const uint16_t mask = EFFECT_CONFIG_SMP_RATE | EFFECT_CONFIG_CHANNELS |
@@ -132,14 +154,49 @@ int main() {
     int32_t configReply = 0;
     testSetConfigReplyStatus(-EINVAL);
     require(command(effect, EFFECT_CMD_SET_CONFIG, sizeof(config), &config,
-                    &replySize, &configReply) == 0 && configReply == -EINVAL,
-            "JamesDSP config rejection is reported in the command reply");
+                    &replySize, &configReply) == 0 && configReply == 0,
+            "rejected but byte-compatible stereo config falls back to pass-through");
     const auto input = signal(1024);
     std::vector<float> output(input.size());
     require(process(effect, input, output) == 0 && output == input,
-            "Orbit remains bypassed when JamesDSP rejects SET_CONFIG");
+            "audio remains unchanged when JamesDSP rejects a safe config");
+
+    config = validConfig();
+    config.inputCfg.channels = AUDIO_CHANNEL_OUT_MONO;
+    config.outputCfg.channels = AUDIO_CHANNEL_OUT_MONO;
+    testSetConfigReplyStatus(-EINVAL);
+    replySize = sizeof(int32_t);
+    configReply = -1;
+    require(command(effect, EFFECT_CMD_SET_CONFIG, sizeof(config), &config,
+                    &replySize, &configReply) == 0 && configReply == 0,
+            "unsupported mono config is accepted as a safe audio bypass");
+    const std::vector<float> monoInput{0.25f, -0.5f, 0.75f, -1.0f};
+    std::vector<float> monoOutput(monoInput.size());
+    require(processMono(effect, monoInput, monoOutput) == 0 &&
+            monoOutput == monoInput,
+            "unsupported mono audio passes through without being silenced");
+
+    config = validConfig();
+    config.inputCfg.channels = AUDIO_CHANNEL_OUT_5POINT1;
+    config.outputCfg.channels = AUDIO_CHANNEL_OUT_5POINT1;
+    config.inputCfg.format = AUDIO_FORMAT_PCM_16_BIT;
+    config.outputCfg.format = AUDIO_FORMAT_PCM_16_BIT;
+    testSetConfigReplyStatus(-EINVAL);
+    replySize = sizeof(int32_t);
+    configReply = -1;
+    require(command(effect, EFFECT_CMD_SET_CONFIG, sizeof(config), &config,
+                    &replySize, &configReply) == 0 && configReply == 0,
+            "unsupported multichannel PCM config is accepted as safe bypass");
+    std::vector<uint8_t> surroundInput(3 * 6 * sizeof(int16_t));
+    for (size_t i = 0; i < surroundInput.size(); ++i)
+        surroundInput[i] = static_cast<uint8_t>(i * 17u);
+    std::vector<uint8_t> surroundOutput(surroundInput.size());
+    require(processRaw(effect, surroundInput, surroundOutput, 3) == 0 &&
+            surroundOutput == surroundInput,
+            "unsupported multichannel PCM passes through byte-for-byte");
 
     testSetConfigReplyStatus(0);
+    config = validConfig();
     replySize = sizeof(int32_t);
     configReply = -1;
     require(command(effect, EFFECT_CMD_SET_CONFIG, sizeof(config), &config,
@@ -168,11 +225,6 @@ int main() {
     config.outputCfg.samplingRate = 44100;
     expectBypassAfterConfig(effect, config, input,
         "Orbit stays bypassed for mismatched input/output rates");
-
-    config = validConfig();
-    config.inputCfg.channels = AUDIO_CHANNEL_OUT_MONO;
-    expectBypassAfterConfig(effect, config, input,
-        "Orbit stays bypassed for a mono input route");
 
     config = validConfig();
     config.outputCfg.format = AUDIO_FORMAT_PCM_16_BIT;
