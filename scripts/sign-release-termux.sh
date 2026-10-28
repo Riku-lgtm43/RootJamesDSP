@@ -1,8 +1,8 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -euo pipefail
 
-JKS="$HOME/.jamesdsp-signing/jamesdsp-release.jks"
-ALIAS=jamesdsp_release
+JKS=${JAMESDSP_KEYSTORE:-"$HOME/.jamesdsp-signing/jamesdsp-release.jks"}
+ALIAS=${JAMESDSP_KEY_ALIAS:-jamesdsp_release}
 source "$(dirname "$0")/termux-android-tools.sh"
 INPUT="${1:-app/build/outputs/apk/rootFdroid/release/JamesDSP-v1.6.14-51-root-fdroid-universal-release-unsigned.apk}"
 OUTPUT="${2:-${INPUT%-unsigned.apk}-signed.apk}"
