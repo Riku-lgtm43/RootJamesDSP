@@ -21,12 +21,12 @@ import timber.log.Timber
 class RootSessionDatabase(context: Context) : BaseSessionDatabase(context) {
 
     /**
-     * Use AudioManager's active-player list first, with explicit AudioEffect events and system
-     * dumps as complementary sources for devices or players that omit session details.
+     * The system dump providers do not expose every active playback session on every device.
+     * Keep explicit AudioEffect session events as an overlay so a partial dump cannot remove
+     * an app's effect while it is still playing.
      */
     private val enhancedSessionLock = Any()
     private val enhancedIntentSessions = hashMapOf<Int, AudioSessionDumpEntry>()
-    private val enhancedPlaybackSessions = hashMapOf<Int, AudioSessionDumpEntry>()
     private val enhancedClosedSessionIds = mutableSetOf<Int>()
     private var lastEnhancedDumpSessions = hashMapOf<Int, AudioSessionDumpEntry>()
 
@@ -119,16 +119,10 @@ class RootSessionDatabase(context: Context) : BaseSessionDatabase(context) {
         if (app.isEnhancedProcessing) {
             val sessionIds = if (sessionId > 0) {
                 synchronized(enhancedSessionLock) {
-                    val knownUid = enhancedIntentSessions[sessionId]?.uid
-                        ?: enhancedPlaybackSessions[sessionId]?.uid
-                        ?: lastEnhancedDumpSessions[sessionId]?.uid
-                        ?: sessionList[sessionId]?.uid
-                    val requestedUid = if (!packageName.isNullOrBlank())
-                        context.getUidFromPackage(packageName)
-                    else
-                        -1
-                    if (requestedUid >= 0 && knownUid != null && knownUid >= 0 &&
-                        requestedUid != knownUid)
+                    val knownPackage = enhancedIntentSessions[sessionId]?.packageName
+                        ?: lastEnhancedDumpSessions[sessionId]?.packageName
+                        ?: sessionList[sessionId]?.packageName
+                    if (packageName != null && knownPackage != null && knownPackage != packageName)
                         emptySet()
                     else
                         setOf(sessionId)
@@ -137,7 +131,6 @@ class RootSessionDatabase(context: Context) : BaseSessionDatabase(context) {
                 synchronized(enhancedSessionLock) {
                     (lastEnhancedDumpSessions.filterValues { it.packageName == packageName }.keys +
                             enhancedIntentSessions.filterValues { it.packageName == packageName }.keys +
-                            enhancedPlaybackSessions.filterValues { it.packageName == packageName }.keys +
                             sessionList.filterValues { it.packageName == packageName }.keys).toSet()
                 }
             } else {
@@ -147,10 +140,8 @@ class RootSessionDatabase(context: Context) : BaseSessionDatabase(context) {
             synchronized(enhancedSessionLock) {
                 sessionIds.forEach { id ->
                     val wasTracked = enhancedIntentSessions.containsKey(id) ||
-                            enhancedPlaybackSessions.containsKey(id) ||
                             lastEnhancedDumpSessions.containsKey(id) || sessionList.containsKey(id)
                     enhancedIntentSessions.remove(id)
-                    enhancedPlaybackSessions.remove(id)
                     // A dump can briefly report a closed session. Suppress it until a later
                     // successful dump confirms that the id has disappeared.
                     if (wasTracked) enhancedClosedSessionIds.add(id)
@@ -184,17 +175,16 @@ class RootSessionDatabase(context: Context) : BaseSessionDatabase(context) {
             return
         }
 
-        val packageUid = context.getUidFromPackage(packageName)
         val dumpEntry = synchronized(enhancedSessionLock) {
-            (enhancedPlaybackSessions[sessionId] ?: lastEnhancedDumpSessions[sessionId])
-                ?.takeIf { packageUid >= 0 && it.uid == packageUid }
+            lastEnhancedDumpSessions[sessionId]?.takeIf { it.packageName == packageName }
         }
+        val packageUid = context.getUidFromPackage(packageName)
         val uid = packageUid.takeIf { it >= 0 } ?: dumpEntry?.uid ?: -1
         val entry = AudioSessionDumpEntry(
             uid,
             packageName,
-            dumpEntry?.usage ?: "USAGE_UNKNOWN",
-            dumpEntry?.content ?: "CONTENT_TYPE_UNKNOWN"
+            "USAGE_UNKNOWN",
+            "CONTENT_TYPE_UNKNOWN"
         )
         synchronized(enhancedSessionLock) {
             enhancedClosedSessionIds.remove(sessionId)
@@ -202,74 +192,11 @@ class RootSessionDatabase(context: Context) : BaseSessionDatabase(context) {
         }
 
         val existing = sessionList[sessionId]
-        if (existing != null) {
-            if (existing.uid >= 0 && uid >= 0 && existing.uid != uid) {
-                removeSession(sessionId)
-            } else {
-                existing.packageName = packageName
-                if (uid >= 0) existing.uid = uid
-            }
+        if (existing != null && existing.packageName != packageName) {
+            removeSession(sessionId)
         }
         if (sessionList[sessionId] == null) {
             addSession(sessionId, uid, packageName)
-        }
-    }
-
-    /** Keep the AudioManager's active player list as the primary live session source. */
-    fun updateEnhancedPlaybackSessions(sessions: HashMap<Int, AudioSessionDumpEntry>) {
-        val currentSessions = sessions.filter { (id, entry) ->
-            id > 0 && entry.uid != context.applicationInfo.uid &&
-                    entry.packageName != context.packageName
-        }
-        val staleSessionIds = synchronized(enhancedSessionLock) {
-            val staleIds = enhancedPlaybackSessions.keys - currentSessions.keys
-            staleIds.forEach { id ->
-                enhancedPlaybackSessions.remove(id)
-                enhancedIntentSessions.remove(id)
-                enhancedClosedSessionIds.add(id)
-            }
-            currentSessions.forEach { (id, entry) ->
-                enhancedClosedSessionIds.remove(id)
-                enhancedPlaybackSessions[id] = entry
-                enhancedIntentSessions[id]?.let { intentEntry ->
-                    if (intentEntry.uid < 0 || intentEntry.uid == entry.uid) {
-                        enhancedIntentSessions[id] = intentEntry.copy(
-                            uid = entry.uid,
-                            usage = entry.usage,
-                            content = entry.content
-                        )
-                    }
-                }
-            }
-            staleIds
-        }
-
-        staleSessionIds.forEach { id ->
-            removeSession(id)
-        }
-
-        currentSessions.forEach { (id, entry) ->
-            if (!entry.isUsageRecordable()) {
-                removeSession(id)
-                return@forEach
-            }
-
-            val intentEntry = synchronized(enhancedSessionLock) {
-                enhancedIntentSessions[id]
-            }
-            val session = intentEntry ?: entry
-            val existing = sessionList[id]
-            if (existing != null && existing.uid >= 0 && session.uid >= 0 &&
-                existing.uid != session.uid) {
-                removeSession(id)
-            }
-            sessionList[id]?.let {
-                it.packageName = session.packageName
-                if (session.uid >= 0) it.uid = session.uid
-            }
-            if (sessionList[id] == null) {
-                addSession(id, session.uid, session.packageName)
-            }
         }
     }
 
@@ -282,9 +209,8 @@ class RootSessionDatabase(context: Context) : BaseSessionDatabase(context) {
         synchronized(enhancedSessionLock) {
             enhancedClosedSessionIds.removeAll { !dump.sessions.containsKey(it) }
             enhancedClosedSessionIds.forEach { id -> mergedSessions.remove(id) }
-            enhancedPlaybackSessions.forEach { (id, entry) -> mergedSessions[id] = entry }
             enhancedIntentSessions.forEach { (id, entry) ->
-                val systemEntry = enhancedPlaybackSessions[id] ?: dump.sessions[id]
+                val systemEntry = dump.sessions[id]
                 mergedSessions[id] = if (systemEntry != null &&
                     (entry.uid < 0 || systemEntry.uid == entry.uid)) {
                     // Keep the intent's package identity, but retain the system dump's UID and
@@ -314,7 +240,6 @@ class RootSessionDatabase(context: Context) : BaseSessionDatabase(context) {
     fun clearEnhancedSessionIntents() {
         synchronized(enhancedSessionLock) {
             enhancedIntentSessions.clear()
-            enhancedPlaybackSessions.clear()
             enhancedClosedSessionIds.clear()
             lastEnhancedDumpSessions.clear()
         }
