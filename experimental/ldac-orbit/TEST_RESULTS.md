@@ -169,4 +169,23 @@ pending. Enhanced mode's session service was not changed; the zero-underrun
 snapshot does not establish long-session stability. See
 `artifacts/USB_HiFi_192k_Verification_Report.md` and the v37 package in
 `artifacts/` for the complete checks. ZIP SHA-256:
-`3d0978ac5374dc5dc4b2d0f7fd1fcde83714609b8b666c73e8f6d8f65f76e321`.
+`f4f01ac89cc1881d106a34a6aa821091a45482e86b968a03a95134fb479f47f0`.
+
+## Auxio / Android 16 config-label follow-up — 2026-10-28
+
+The master-on log records Auxio package `org.oxycblt.auxio`, PID 7848, session
+297, and a MusicFx open-session event. At boot, `audioserver` receives repeated
+SELinux `read` denials for the module overlay's `audio_effects.xml`, labeled
+`vendor_file`. This matches the current customizer's recursive label of all
+`/system/vendor` contents. Android 16 expects configuration files under
+`/vendor/etc` to use `vendor_configs_file`.
+
+V38 is a packaging-only candidate: it relabels `/vendor/etc` after applying
+`vendor_file` to the soundfx libraries. It adds no allow rule and retains the
+v37 native library, APK, HRTF data, and effect XML unchanged. Shell/static
+checks, protected-file comparisons, ZIP integrity, and SHA-256 verification
+pass. The filtered log does not show a successful JamesDSP effect creation or
+Auxio's PCM/channel configuration, so the denial's connection to silence is
+not yet proven. Device reboot, `ls -Z`, effect-registration, and Auxio audio
+tests remain required. See
+`artifacts/Android16_Auxio_ConfigLabel_Verification.md`.

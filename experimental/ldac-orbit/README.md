@@ -209,9 +209,26 @@ the hardware-rate discrepancy remain open checks. V37 changes Orbit HRTF rate
 selection; it does not change Enhanced session handling.
 
 Download the [v37 USB HiFi 192 kHz experimental KernelSU ZIP](https://raw.githubusercontent.com/Riku-lgtm43/RootJamesDSP/fix/usb-hifi-192k-effect-routing/experimental/ldac-orbit/artifacts/JamesDSP_Orbit_USB_HiFi_192k_CIPIC_Experimental_KernelSU_v37.zip).
-Its SHA-256 is `3d0978ac5374dc5dc4b2d0f7fd1fcde83714609b8b666c73e8f6d8f65f76e321`.
+Its SHA-256 is `f4f01ac89cc1881d106a34a6aa821091a45482e86b968a03a95134fb479f47f0`.
 See the [v37 verification report](artifacts/USB_HiFi_192k_Verification_Report.md)
 before testing. The published Stage 31 release and v36 ZIP remain unchanged.
+
+## Android 16 Auxio audio-config label follow-up
+
+The Auxio master-on log maps PID 7848 to session 297 and records its MusicFx
+session opening. It also records repeated `audioserver` SELinux read denials
+for the overlaid `audio_effects.xml`, labeled `vendor_file`. V38 updates only
+the installer labels: `/vendor/etc` files become `vendor_configs_file`, while
+sound-effect libraries remain `vendor_file`. It adds no policy allow rule and
+does not rebuild or alter the APK or DSP binaries.
+
+Download the [v38 Android 16 config-label experimental KernelSU ZIP](https://raw.githubusercontent.com/Riku-lgtm43/RootJamesDSP/fix/usb-hifi-192k-effect-routing/experimental/ldac-orbit/artifacts/JamesDSP_Orbit_USB_HiFi_192k_CIPIC_Android16_ConfigLabels_KernelSU_v38.zip).
+Its SHA-256 is recorded in the adjacent `.sha256` file and `artifacts/SHA256SUMS`.
+Read the [v38 verification report](artifacts/Android16_Auxio_ConfigLabel_Verification.md)
+before installing. Reboot, verify the labels with `ls -Z`, then retest Auxio.
+The denial is confirmed; its role in Auxio's silence, successful effect
+registration, and Android 16 playback still need device verification. Stage 31
+and v37 remain unchanged.
 
 ## Termux package reassembly
 
