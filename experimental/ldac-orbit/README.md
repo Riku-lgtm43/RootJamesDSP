@@ -218,9 +218,10 @@ before testing. The published Stage 31 release and v36 ZIP remain unchanged.
 The Auxio master-on log maps PID 7848 to session 297 and records its MusicFx
 session opening. It also records repeated `audioserver` SELinux read denials
 for the overlaid `audio_effects.xml`, labeled `vendor_file`. V38 updates only
-the installer labels: `/vendor/etc` files become `vendor_configs_file`, while
-sound-effect libraries remain `vendor_file`. It adds no policy allow rule and
-does not rebuild or alter the APK or DSP binaries.
+the installer labels: its bundled `/vendor/etc` overlay files become
+`vendor_configs_file`, while sound-effect libraries remain `vendor_file`. It
+does not relabel the separate device `vendor_audio_effects_current.xml`, adds
+no policy allow rule, and does not rebuild or alter the APK or DSP binaries.
 
 Download the [v38 Android 16 config-label experimental KernelSU ZIP](https://raw.githubusercontent.com/Riku-lgtm43/RootJamesDSP/fix/usb-hifi-192k-effect-routing/experimental/ldac-orbit/artifacts/JamesDSP_Orbit_USB_HiFi_192k_CIPIC_Android16_ConfigLabels_KernelSU_v38.zip).
 Its SHA-256 is recorded in the adjacent `.sha256` file and `artifacts/SHA256SUMS`.

@@ -21,10 +21,12 @@ claim to have confirmed that the SELinux denial is the only cause of silence.
 ## Package change
 
 Version 38 applies `vendor_file` to the overlay payload, then reapplies
-`vendor_configs_file` to `/system/vendor/etc` and its files. This includes
-`audio_effects.xml`, `vendor_audio_effects_current.xml`, and the bundled HRTF
-configuration. Sound-effect libraries under `system/vendor/lib64/soundfx`
-remain `vendor_file`.
+`vendor_configs_file` to the bundled `/system/vendor/etc` payload. This covers
+the module's `audio_effects.xml` and CIPIC HRTF data. The ZIP does not contain
+or relabel the device's separate `vendor_audio_effects_current.xml`; the log
+shows an `init` relabel denial for that file but no `audioserver` read denial.
+Sound-effect libraries under `system/vendor/lib64/soundfx` remain
+`vendor_file`.
 
 The change adds no SELinux allow rule and performs no live system write. It
 changes only `customize.sh`, module metadata, and documentation. The v37 Orbit
@@ -51,10 +53,12 @@ After reboot, check labels:
 su -c 'ls -lZ /vendor/etc/audio_effects.xml /vendor/etc/vendor_audio_effects_current.xml /vendor/etc/axionfx/hrtf/cipic_124.sofa /vendor/lib64/soundfx/libjamesdsp_orbit.so /vendor/lib64/soundfx/libphonon.so'
 ```
 
-The files under `/vendor/etc` should show `vendor_configs_file`; the soundfx
-libraries should show `vendor_file`. Then test Auxio with the master switch on
-and off. Verify an active JamesDSP session/effect in `dumpsys media.audio_flinger`
-before concluding that playback is repaired. USB hardware rate, Orbit
-initialization, Android 16 reboot behavior, and Enhanced-mode stability remain
-separate device checks. To roll back, disable the module in KernelSU, reboot,
-and restore the backed-up Stage 31 package.
+The module-owned `audio_effects.xml` and CIPIC SOFA file should show
+`vendor_configs_file`; the soundfx libraries should show `vendor_file`. Record
+the `vendor_audio_effects_current.xml` context separately: v38 does not change
+that file. Then test Auxio with the master switch on and off. Verify an active
+JamesDSP session/effect in `dumpsys media.audio_flinger` before concluding that
+playback is repaired. USB hardware rate, Orbit initialization, Android 16
+reboot behavior, and Enhanced-mode stability remain separate device checks.
+To roll back, disable the module in KernelSU, reboot, and restore the backed-up
+Stage 31 package.

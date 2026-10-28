@@ -180,9 +180,11 @@ SELinux `read` denials for the module overlay's `audio_effects.xml`, labeled
 `/system/vendor` contents. Android 16 expects configuration files under
 `/vendor/etc` to use `vendor_configs_file`.
 
-V38 is a packaging-only candidate: it relabels `/vendor/etc` after applying
-`vendor_file` to the soundfx libraries. It adds no allow rule and retains the
-v37 native library, APK, HRTF data, and effect XML unchanged. Shell/static
+V38 is a packaging-only candidate: it labels the bundled vendor `etc` overlay
+files `vendor_configs_file` after applying `vendor_file` to the soundfx
+libraries. It does not change the device's separate
+`vendor_audio_effects_current.xml`, adds no allow rule, and retains the v37
+native library, APK, HRTF data, and effect XML unchanged. Shell/static
 checks, protected-file comparisons, ZIP integrity, and SHA-256 verification
 pass. The filtered log does not show a successful JamesDSP effect creation or
 Auxio's PCM/channel configuration, so the denial's connection to silence is
