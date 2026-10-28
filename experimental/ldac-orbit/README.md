@@ -190,6 +190,29 @@ Its SHA-256 is
 The matching verification report is
 [here](artifacts/JamesDSP_Orbit_LDAC_CIPIC_HRTF_NoLogs_Verification_Report.md).
 
+## USB HiFi 192 kHz Orbit candidate
+
+The 2026-10-28 capture confirms Enhanced mode attaches JamesDSP to the active
+USB `hifi_playback` session at stereo-float 192 kHz. V36 selected the embedded
+Steam Audio HRTF at that rate. Exact-library checks confirm embedded entries
+at 24/44.1/48 kHz and failures at 88.2/96 kHz; the exact Android 192 kHz check
+remains pending. This rate-selection mismatch is a likely cause of Orbit not
+initializing. V37 selects bundled CIPIC SOFA outside the confirmed embedded
+rates. Host callback, real-HRTF, and 4.8.1 Linux matrix checks pass through
+192 kHz; the exact Android ARM64 matrix and device listening test remain
+pending.
+
+The capture reports zero underruns for the active track at that moment. It
+does not establish long-session stability. ALSA reports a 48 kHz momentary USB
+rate while AudioFlinger reports 192 kHz. Enhanced-mode service lifecycle and
+the hardware-rate discrepancy remain open checks. V37 changes Orbit HRTF rate
+selection; it does not change Enhanced session handling.
+
+Download the [v37 USB HiFi 192 kHz experimental KernelSU ZIP](https://raw.githubusercontent.com/Riku-lgtm43/RootJamesDSP/fix/usb-hifi-192k-effect-routing/experimental/ldac-orbit/artifacts/JamesDSP_Orbit_USB_HiFi_192k_CIPIC_Experimental_KernelSU_v37.zip).
+Its SHA-256 is `3d0978ac5374dc5dc4b2d0f7fd1fcde83714609b8b666c73e8f6d8f65f76e321`.
+See the [v37 verification report](artifacts/USB_HiFi_192k_Verification_Report.md)
+before testing. The published Stage 31 release and v36 ZIP remain unchanged.
+
 ## Termux package reassembly
 
 The helper reassembles the config-guard package from the original

@@ -100,7 +100,7 @@ Metrics measure(const std::vector<float>& signal, int rate) {
 int main() {
     const std::vector<int> regularCallbacks{1920};
     const std::vector<int> irregularCallbacks{1, 64, 127, 128, 129, 256, 480, 882, 1024, 1920, 2048};
-    for (const int rate : {44100, 48000, 96000}) {
+    for (const int rate : {44100, 48000, 96000, 192000}) {
         for (const bool broadband : {false, true}) {
             const auto regular = render(rate, broadband, regularCallbacks);
             const auto irregular = render(rate, broadband, irregularCallbacks);

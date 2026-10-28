@@ -37,14 +37,17 @@
 +    hrtfSettings.normType = IPL_HRTFNORMTYPE_RMS;
 @@ -80 +78,8 @@
 -    if (mHrtfProfile == 1 && access(kSofaPath, R_OK) == 0) {
-+    const bool highRateNeedsSofa = mSampleRate == 88200 || mSampleRate == 96000;
++    const bool embeddedHrtfSupportsRate = mSampleRate == 24000 ||
++                                          mSampleRate == 44100 ||
++                                          mSampleRate == 48000;
++    const bool highRateNeedsSofa = !embeddedHrtfSupportsRate;
 +    const bool sadieAvailable = mHrtfProfile == 1 && access(kSadieSofaPath, R_OK) == 0;
 +    if (sadieAvailable) {
 +        hrtfSettings.type = IPL_HRTFTYPE_SOFA;
 +        hrtfSettings.sofaFileName = kSadieSofaPath;
 +    } else if (highRateNeedsSofa) {
-+        // Steam Audio's embedded default HRTF has no 88.2/96 kHz data.
-+        // The bundled CIPIC SOFA is resampled by Steam Audio for these rates.
++        // Steam Audio's embedded default contains only 24/44.1/48 kHz data.
++        // Use CIPIC for other stream rates; Steam Audio resamples the SOFA.
 @@ -82,2 +87 @@
 -        hrtfSettings.sofaFileName = kSofaPath;
 -        AXIONFX_DISABLED_LOG("Loading HRTF profile SADIE H12 from %s", kSofaPath);

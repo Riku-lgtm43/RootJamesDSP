@@ -145,3 +145,28 @@ offline host test; they do not replace on-device listening. The v36 ZIP is not
 installed. LDAC listening at 44.1/48/96 kHz, AAC/USB controls, Android 16
 install/reboot, and extended stability tests remain pending. The v35 package
 and published Stage 31 release are unchanged.
+
+## USB HiFi 192 kHz Orbit follow-up — 2026-10-28
+
+The new USB routing capture shows the active Apple Music session effect on
+`hifi_playback` I/O 253 at stereo-float 192 kHz. AudioFlinger reports zero
+active-track underruns at capture time. The ALSA descriptor separately reports
+`Momentary freq = 48000 Hz`; these values do not prove the USB DAC is receiving
+192 kHz.
+
+V36 selected CIPIC only at 88.2/96 kHz and used the embedded HRTF at 192 kHz.
+The exact Stage 31 matrix confirms that embedded data has entries at 24/44.1/48
+kHz and rejects high rates. V37 selects CIPIC outside those embedded rates.
+The host ASan/UBSan suite passed at 8/16/24/32/44.1/48/88.2/96/176.4/192 kHz;
+the JamesDSP effect connection and Orbit parameter/configuration guards passed.
+Steam Audio 4.8.1 Linux HRTF processing at 192 kHz passed tone and broadband
+tests with finite output, no full-scale samples, a 0.95 peak cap, and identical
+regular/irregular callback output. The Linux exact-rate matrix created CIPIC
+HRTFs at 192 kHz for frame sizes 128/256/512/1024.
+
+The exact Android ARM64 HRTF matrix at 192 kHz and device Orbit playback remain
+pending. Enhanced mode's session service was not changed; the zero-underrun
+snapshot does not establish long-session stability. See
+`artifacts/USB_HiFi_192k_Verification_Report.md` and the v37 package in
+`artifacts/` for the complete checks. ZIP SHA-256:
+`3d0978ac5374dc5dc4b2d0f7fd1fcde83714609b8b666c73e8f6d8f65f76e321`.

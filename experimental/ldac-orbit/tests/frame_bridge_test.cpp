@@ -36,12 +36,12 @@ static std::vector<float> render(int rate, const std::vector<int>& chunks) {
     require(mockLastRate() == rate, "sample rate passed to HRTF");
     require(mockLastHrtfNormType() == IPL_HRTFNORMTYPE_RMS,
             "HRTF loudness is normalized across directions");
-    if (rate == 88200 || rate == 96000) {
-        require(mockLastHrtfType() == IPL_HRTFTYPE_SOFA, "SOFA selected above embedded default rates");
+    if (rate != 24000 && rate != 44100 && rate != 48000) {
+        require(mockLastHrtfType() == IPL_HRTFTYPE_SOFA, "SOFA selected outside embedded default rates");
         require(std::strcmp(mockLastSofaPath(), "/vendor/etc/axionfx/hrtf/cipic_124.sofa") == 0,
-                "bundled CIPIC SOFA path selected at high rates");
+                "bundled CIPIC SOFA path selected at unsupported embedded rates");
     } else {
-        require(mockLastHrtfType() == IPL_HRTFTYPE_DEFAULT, "embedded default retained at 44.1/48 kHz");
+        require(mockLastHrtfType() == IPL_HRTFTYPE_DEFAULT, "embedded default retained at supported rates");
     }
     std::vector<float> output(input.size());
     int pos = 0, n = 0;
@@ -90,7 +90,8 @@ static std::vector<float> render(int rate, const std::vector<int>& chunks) {
 int main() {
     const std::vector<int> oneBlock{128};
     const std::vector<int> irregular{1,64,96,127,128,129,192,240,256,480,512,882,960,1024,1920,2048};
-    for (int rate : {44100, 48000, 88200, 96000}) {
+    for (int rate : {8000, 16000, 24000, 32000, 44100, 48000,
+                     88200, 96000, 176400, 192000}) {
         auto a = render(rate, oneBlock);
         auto b = render(rate, irregular);
         require(a.size() == b.size(), "render lengths match");

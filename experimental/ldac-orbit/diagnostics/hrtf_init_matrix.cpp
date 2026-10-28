@@ -14,7 +14,8 @@
 #include <unistd.h>
 
 namespace {
-constexpr int kRates[] = {44100, 48000, 88200, 96000};
+constexpr int kRates[] = {8000, 16000, 24000, 32000, 44100, 48000,
+                          88200, 96000, 176400, 192000};
 constexpr int kFrames[] = {128, 256, 512, 1024};
 
 const char* statusName(IPLerror error) {
