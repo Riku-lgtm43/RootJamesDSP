@@ -229,6 +229,7 @@ class RootAudioProcessorService : BaseAudioProcessorService(), KoinComponent,
 
         sessionDumpManager = RootSessionDumpManager(this)
         sessionDumpManager?.setOnSessionDump(app.rootSessionDatabase::updateEnhanced)
+        sessionDumpManager?.setOnPlaybackSessions(app.rootSessionDatabase::updateEnhancedPlaybackSessions)
         sessionDumpManager?.setOnDumpMethodChanged(app.rootSessionDatabase::clearSessions)
         sessionDumpManager?.pollOnce(false)
     }

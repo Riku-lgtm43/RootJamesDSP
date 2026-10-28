@@ -72,6 +72,12 @@ abstract class BaseSessionManager(protected val context: Context) : DumpManager.
 
     protected abstract fun handleSessionDump(sessionDump: ISessionInfoDump?)
 
+    protected open fun onPlaybackConfigurationsChanged(
+        configs: MutableList<AudioPlaybackConfiguration>?
+    ) {
+        pollOnce(false)
+    }
+
     init {
         Timber.d("Initializing SessionDumpManager")
 
@@ -81,7 +87,7 @@ abstract class BaseSessionManager(protected val context: Context) : DumpManager.
                 super.onPlaybackConfigChanged(configs)
 
                 Timber.d("Playback config changed")
-                pollOnce(false)
+                onPlaybackConfigurationsChanged(configs)
             }
         }
         audioManager.registerAudioPlaybackCallback(audioPlaybackCallback!!, Handler(Looper.getMainLooper()))
