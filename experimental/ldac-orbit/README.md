@@ -190,47 +190,6 @@ Its SHA-256 is
 The matching verification report is
 [here](artifacts/JamesDSP_Orbit_LDAC_CIPIC_HRTF_NoLogs_Verification_Report.md).
 
-## USB HiFi 192 kHz Orbit candidate
-
-The 2026-10-28 capture confirms Enhanced mode attaches JamesDSP to the active
-USB `hifi_playback` session at stereo-float 192 kHz. V36 selected the embedded
-Steam Audio HRTF at that rate. Exact-library checks confirm embedded entries
-at 24/44.1/48 kHz and failures at 88.2/96 kHz; the exact Android 192 kHz check
-remains pending. This rate-selection mismatch is a likely cause of Orbit not
-initializing. V37 selects bundled CIPIC SOFA outside the confirmed embedded
-rates. Host callback, real-HRTF, and 4.8.1 Linux matrix checks pass through
-192 kHz; the exact Android ARM64 matrix and device listening test remain
-pending.
-
-The capture reports zero underruns for the active track at that moment. It
-does not establish long-session stability. ALSA reports a 48 kHz momentary USB
-rate while AudioFlinger reports 192 kHz. Enhanced-mode service lifecycle and
-the hardware-rate discrepancy remain open checks. V37 changes Orbit HRTF rate
-selection; it does not change Enhanced session handling.
-
-Download the [v37 USB HiFi 192 kHz experimental KernelSU ZIP](https://raw.githubusercontent.com/Riku-lgtm43/RootJamesDSP/fix/usb-hifi-192k-effect-routing/experimental/ldac-orbit/artifacts/JamesDSP_Orbit_USB_HiFi_192k_CIPIC_Experimental_KernelSU_v37.zip).
-Its SHA-256 is `f4f01ac89cc1881d106a34a6aa821091a45482e86b968a03a95134fb479f47f0`.
-See the [v37 verification report](artifacts/USB_HiFi_192k_Verification_Report.md)
-before testing. The published Stage 31 release and v36 ZIP remain unchanged.
-
-## Android 16 Auxio audio-config label follow-up
-
-The Auxio master-on log maps PID 7848 to session 297 and records its MusicFx
-session opening. It also records repeated `audioserver` SELinux read denials
-for the overlaid `audio_effects.xml`, labeled `vendor_file`. V38 updates only
-the installer labels: its bundled `/vendor/etc` overlay files become
-`vendor_configs_file`, while sound-effect libraries remain `vendor_file`. It
-does not relabel the separate device `vendor_audio_effects_current.xml`, adds
-no policy allow rule, and does not rebuild or alter the APK or DSP binaries.
-
-Download the [v38 Android 16 config-label experimental KernelSU ZIP](https://raw.githubusercontent.com/Riku-lgtm43/RootJamesDSP/fix/usb-hifi-192k-effect-routing/experimental/ldac-orbit/artifacts/JamesDSP_Orbit_USB_HiFi_192k_CIPIC_Android16_ConfigLabels_KernelSU_v38.zip).
-Its SHA-256 is recorded in the adjacent `.sha256` file and `artifacts/SHA256SUMS`.
-Read the [v38 verification report](artifacts/Android16_Auxio_ConfigLabel_Verification.md)
-before installing. Reboot, verify the labels with `ls -Z`, then retest Auxio.
-The denial is confirmed; its role in Auxio's silence, successful effect
-registration, and Android 16 playback still need device verification. Stage 31
-and v37 remain unchanged.
-
 ## Termux package reassembly
 
 The helper reassembles the config-guard package from the original
@@ -271,34 +230,3 @@ library is Steam Audio 4.8.1 Linux x86-64, not the exact Android ARM64 library;
 device listening tests for this candidate are still required. See
 [`TEST_RESULTS.md`](TEST_RESULTS.md) and
 [`AudioQuality_Verification_Report.md`](artifacts/AudioQuality_Verification_Report.md).
-
-## 192 kHz brightness follow-up
-
-The user described Orbit as harsh/too bright at 192 kHz. A real-HRTF host tone
-sweep found the high-rate CIPIC path up to 10–14 dB hotter than the embedded
-48 kHz path at 8–18 kHz. The separate
-[`high-rate-hrtf-level.patch`](high-rate-hrtf-level.patch) applies 0.25 HRTF
-volume at exactly 192 kHz only. The new response regression compares both input
-channels and both output channels at 8, 12, 16, and 18 kHz against 48 kHz; the
-corrected 192 kHz response is within 1.5 dB. The 44.1/48/96/176.4 kHz paths are
-unchanged. Run it with:
-
-```sh
-experimental/ldac-orbit/scripts/run-high-rate-response-test.sh \
-  /path/to/patched/Stage18/source /path/to/SteamAudio-SDK \
-  /path/to/cipic_124.sofa
-```
-
-This is a Linux Steam Audio 4.8.1 signal test, not Android device listening.
-The same candidate adds a safe PCM pass-through in the native effect wrapper:
-if the stereo DSP core rejects a matching-rate PCM layout, the effect returns
-the input unchanged instead of rejecting the stream. Mono-float and 5.1 PCM16
-pass-through are covered by the host regression. This protects unsupported
-layouts from silence but bypasses DSP for those layouts. TikTok/Facebook
-playback still needs on-device confirmation because their active formats and
-effect chains were not in the supplied Auxio capture.
-
-See [`USB_HiFi_192k_EnhancedMode_v39_Verification_Report.md`](artifacts/USB_HiFi_192k_EnhancedMode_v39_Verification_Report.md)
-for the full report and v39 candidate checks. The
-[v39 experimental KernelSU ZIP](https://raw.githubusercontent.com/Riku-lgtm43/RootJamesDSP/fix/usb-hifi-192k-effect-routing/experimental/ldac-orbit/artifacts/JamesDSP_Orbit_USB_HiFi_192k_EnhancedMode_KernelSU_v39.zip)
-has SHA-256 `db3407ef75a502d59477f8da30ef4c756d6ae1abaf345fbd57aabf93413675d7`.

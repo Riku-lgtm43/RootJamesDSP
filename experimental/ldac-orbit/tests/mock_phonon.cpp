@@ -31,10 +31,7 @@ IPLerror iplHRTFCreate(IPLContext, IPLAudioSettings* a, IPLHRTFSettings* setting
         std::strncpy(gSofaPath, settings->sofaFileName, sizeof(gSofaPath) - 1);
         gSofaPath[sizeof(gSofaPath) - 1] = '\0';
     }
-    const bool embeddedRate = a->samplingRate == 24000 ||
-                              a->samplingRate == 44100 ||
-                              a->samplingRate == 48000;
-    if (gFailHrtf || (!embeddedRate && settings->type == IPL_HRTFTYPE_DEFAULT)) {
+    if (gFailHrtf || (a->samplingRate > 48000 && settings->type == IPL_HRTFTYPE_DEFAULT)) {
         *h = nullptr;
         return IPL_STATUS_INITIALIZATION;
     }
