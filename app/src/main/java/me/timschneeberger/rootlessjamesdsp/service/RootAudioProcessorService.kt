@@ -143,11 +143,20 @@ class RootAudioProcessorService : BaseAudioProcessorService(), KoinComponent,
                 if(app.rootSessionDatabase.sessionList.isEmpty())
                     sendLocalBroadcast(Intent(Constants.ACTION_SERVICE_STARTED))
 
-                if(!isServiceDisposing && !app.isEnhancedProcessing)
-                    app.rootSessionDatabase.addSessionByIntent(intent)
+                if(!isServiceDisposing) {
+                    if (app.isEnhancedProcessing) {
+                        app.rootSessionDatabase.addEnhancedSessionByIntent(intent)
+                        sessionDumpManager?.pollOnce(false)
+                    } else {
+                        app.rootSessionDatabase.addSessionByIntent(intent)
+                    }
+                }
             }
             AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION -> {
-                if(!app.isEnhancedProcessing) {
+                if (app.isEnhancedProcessing) {
+                    app.rootSessionDatabase.removeSessionByIntent(intent)
+                    sessionDumpManager?.pollOnce(false)
+                } else {
                     val sessionId = intent.getIntExtra(AudioEffect.EXTRA_AUDIO_SESSION, -1)
                     MainScope().launch {
                         if (sessionId != 0)
@@ -174,10 +183,14 @@ class RootAudioProcessorService : BaseAudioProcessorService(), KoinComponent,
         // Unregister database observer
         blockedApps.removeObserver(blockedAppObserver)
 
+        sessionDumpManager?.destroy()
+        sessionDumpManager = null
+
         // Notify app about service termination and unregister
         sendLocalBroadcast(Intent(Constants.ACTION_SERVICE_STOPPED))
 
         app.rootSessionDatabase.clearSessions()
+        app.rootSessionDatabase.clearEnhancedSessionIntents()
 
         preferences.unregisterOnSharedPreferenceChangeListener(this)
         app.rootSessionDatabase.unregisterOnSessionChangeListener(this)
@@ -201,6 +214,7 @@ class RootAudioProcessorService : BaseAudioProcessorService(), KoinComponent,
                     sessionDumpManager?.destroy()
                     sessionDumpManager = null
                     app.rootSessionDatabase.setExcludedUids(arrayOf())
+                    app.rootSessionDatabase.clearEnhancedSessionIntents()
                     app.rootSessionDatabase.clearSessions()
                 }
             }
@@ -208,10 +222,13 @@ class RootAudioProcessorService : BaseAudioProcessorService(), KoinComponent,
     }
 
     private fun setupEnhancedProcessing() {
+        sessionDumpManager?.destroy()
+        sessionDumpManager = null
+        app.rootSessionDatabase.clearEnhancedSessionIntents()
         app.rootSessionDatabase.clearSessions()
 
         sessionDumpManager = RootSessionDumpManager(this)
-        sessionDumpManager?.setOnSessionDump(app.rootSessionDatabase::update)
+        sessionDumpManager?.setOnSessionDump(app.rootSessionDatabase::updateEnhanced)
         sessionDumpManager?.setOnDumpMethodChanged(app.rootSessionDatabase::clearSessions)
         sessionDumpManager?.pollOnce(false)
     }

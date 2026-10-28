@@ -20,6 +20,7 @@ import androidx.core.content.getSystemService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -58,7 +59,8 @@ abstract class BaseSessionManager(protected val context: Context) : DumpManager.
 
     // Polling job
     private val pollingMutex = Mutex()
-    private val pollingScope = CoroutineScope(Dispatchers.Main)
+    private val pollingJob = SupervisorJob()
+    private val pollingScope = CoroutineScope(pollingJob + Dispatchers.Main)
     private var continuousPollingJob: Job? = null
 
     // Callbacks
@@ -104,6 +106,10 @@ abstract class BaseSessionManager(protected val context: Context) : DumpManager.
     open fun destroy()
     {
         Timber.d("Destroying SessionDumpManager")
+
+        continuousPollingJob?.cancel()
+        continuousPollingJob = null
+        pollingJob.cancel()
 
         dumpManager.unregisterOnDumpMethodChangeListener(this)
 
